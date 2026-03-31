@@ -279,8 +279,8 @@ def main():
         )
 
     val_dataset = DIV2KDataset(
-        hr_dir=DATA_DIR / "HR_val",
-        lr_dir=DATA_DIR / "LR_val",
+        hr_dir=DATA_DIR / "HR_valid",
+        lr_dir=DATA_DIR / "LR_valid",
         patch_size=None,          # full images for validation
         scale=SCALE,
     )

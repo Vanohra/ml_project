@@ -256,7 +256,7 @@ if __name__ == "__main__":
     print("Randomness check passed (two runs give different results).")
 
     # Optionally save a visual comparison if HR images are available
-    base = Path(__file__).parent.parent / "data" / "DIV2K" / "HR_val"
+    base = Path(__file__).parent.parent / "data" / "DIV2K" / "HR_valid"
     sample_imgs = list(base.glob("*.png"))[:1] + list(base.glob("*.jpg"))[:1]
 
     if sample_imgs:

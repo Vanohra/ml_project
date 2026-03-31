@@ -32,8 +32,8 @@ SCALE    = 4    # Must match what you used in prepare_data.py
 MAX_IMGS = 10   # How many validation images to process (keep small for testing)
 
 BASE_DIR    = Path(__file__).parent.parent
-LR_VAL_DIR  = BASE_DIR / "data" / "DIV2K" / "LR_val"
-HR_VAL_DIR  = BASE_DIR / "data" / "DIV2K" / "HR_val"
+LR_VAL_DIR  = BASE_DIR / "data" / "DIV2K" / "LR_valid"
+HR_VAL_DIR  = BASE_DIR / "data" / "DIV2K" / "HR_valid"
 OUTPUT_DIR  = BASE_DIR / "outputs" / "bicubic_results"
 # ──────────────────────────────────────────────────────────────────────────────
 

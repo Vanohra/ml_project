@@ -31,9 +31,9 @@ ml_project/
 ├── data/
 │   └── DIV2K/
 │       ├── HR_train/        ← YOU place your HR training images here
-│       ├── HR_val/          ← YOU place your HR validation images here
+│       ├── HR_valid/          ← YOU place your HR validation images here
 │       ├── LR_train/        ← auto-created by prepare_data.py (Stage 1 only)
-│       └── LR_val/          ← auto-created by prepare_data.py (Stage 1 only)
+│       └── LR_valid/          ← auto-created by prepare_data.py (Stage 1 only)
 │
 ├── scripts/
 │   ├── prepare_data.py      ← Stage 1: creates LR images from HR images (pre-save to disk)
@@ -58,8 +58,8 @@ ml_project/
 ## What Each File Does
 
 ### `scripts/prepare_data.py` — Stage 1 LR generator
-Reads every HR image from `HR_train/` and `HR_val/`, shrinks it 4× using bicubic
-interpolation, and saves the result to `LR_train/` and `LR_val/`. Optionally applies
+Reads every HR image from `HR_train/` and `HR_valid/`, shrinks it 4× using bicubic
+interpolation, and saves the result to `LR_train/` and `LR_valid/`. Optionally applies`
 Gaussian blur and JPEG compression before saving. You only need this for Stage 1
 (pre-saved LR files). In Stage 2, LR images are generated live and this step is skipped.
 
@@ -184,7 +184,7 @@ This installs: `Pillow`, `torch`, `torchvision`, `numpy`.
 Download images from the [DIV2K dataset](https://data.vision.ee.ethz.ch/cvl/DIV2K/)
 and place them in:
 - `data/DIV2K/HR_train/` — training images (up to 800)
-- `data/DIV2K/HR_val/`   — validation images (up to 100)
+- `data/DIV2K/HR_valid/`   — validation images (up to 100)
 
 Even 5–10 images is enough to verify everything runs correctly.
 
@@ -199,7 +199,7 @@ python scripts/prepare_data.py
 ```
 
 **What it does:** Reads each HR image, applies optional blur and JPEG compression,
-downscales by 4×, and saves to `LR_train/` and `LR_val/`.
+downscales by 4×, and saves to `LR_train/` and `LR_valid/`.
 
 **Expected output:**
 ```
@@ -248,7 +248,7 @@ python scripts/degradation.py
 
 **What it does:** Creates a fake HR image, runs it through the degradation
 pipeline with random parameters, and checks the output size. If HR images exist
-in `HR_val/`, it also saves a visual sample to `outputs/degradation_test/`.
+in `HR_valid/`, it also saves a visual sample to `outputs/degradation_test/`.
 
 **Expected output:**
 ```
@@ -371,7 +371,7 @@ BATCH_SIZE = 8    # try 8, then 4 if still failing
 Run `python scripts/prepare_data.py` first to generate them.
 
 **Images not found at all:**
-Make sure your HR images are in `data/DIV2K/HR_train/` and `data/DIV2K/HR_val/`.
+Make sure your HR images are in `data/DIV2K/HR_train/` and `data/DIV2K/HR_valid/`.
 Supported formats: `.png`, `.jpg`, `.jpeg`, `.bmp`, `.tiff`.
 
 **Training PSNR lower than bicubic baseline:**

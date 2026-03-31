@@ -10,8 +10,8 @@ Pipeline for each image:
 After running this you will have:
   data/DIV2K/HR_train/   your original high-res images  (you put these here)
   data/DIV2K/LR_train/   matching low-res images        (this script creates these)
-  data/DIV2K/HR_val/
-  data/DIV2K/LR_val/
+  data/DIV2K/HR_valid/
+  data/DIV2K/LR_valid/
   outputs/preprocessing.log   a plain-text summary of what was processed
 """
 
@@ -44,7 +44,7 @@ SUPPORTED = {".png", ".jpg", ".jpeg", ".bmp", ".tiff"}
 # Pairs of (HR folder, LR folder) to process
 SPLITS = [
     ("HR_train", "LR_train"),
-    ("HR_val",   "LR_val"),
+    ("HR_valid", "LR_valid"),
 ]
 
 # ──────────────────────────────────────────────────────────────────────────────

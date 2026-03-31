@@ -205,8 +205,8 @@ if __name__ == "__main__":
     # ── Test Mode A (pre-saved LR) ────────────────────────────────────────────
     print("Mode A — pre-saved LR files:")
     try:
-        val_ds = DIV2KDataset(hr_dir=base / "HR_val",
-                              lr_dir=base / "LR_val")
+        val_ds = DIV2KDataset(hr_dir=base / "HR_valid",
+                              lr_dir=base / "LR_valid")
         lr, hr = val_ds[0]
         print(f"  Full image  — LR: {tuple(lr.shape)}  HR: {tuple(hr.shape)}")
 
