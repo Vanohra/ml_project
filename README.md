@@ -406,5 +406,5 @@ Upcoming stages will add:
 - **Stage 5:** evaluation on VIRAT surveillance video frames
 
 Team: Dany George Nishanth, Vanohra Gaspard, Sabirin Mohamed
-Course: CSC 4850 Machine Learning — Georgia State University, Spring 2025
+Course: CSC 4850 Machine Learning — Georgia State University, Spring 2026
 Instructor: Dr. Dong Hye Ye
