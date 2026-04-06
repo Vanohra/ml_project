@@ -3,24 +3,41 @@ dataset.py
 ----------
 Loads HR/LR image pairs for training and validation.
 
-Supports two modes controlled by whether you pass lr_dir or degradation_fn:
+Supports three modes controlled by which constructor arguments you pass:
 
-  MODE A — Pre-saved LR (Stage 1)
+  MODE A — Pre-saved LR  (Stage 1)
     DIV2KDataset(hr_dir=..., lr_dir=..., patch_size=48)
     Loads matching HR and LR files from disk.
-    Use this when you already ran prepare_data.py.
+    Use this when you have already run prepare_data.py.
 
-  MODE B — Online degradation (Stage 2+)
+  MODE B — Generic online degradation  (Stage 2)
     DIV2KDataset(hr_dir=..., degradation_fn=degrade, patch_size=48)
     Loads HR only. Generates LR live by calling degradation_fn on each crop.
     Every epoch sees different random degradations → effectively unlimited data.
 
+  MODE C — Domain-conditioned degradation  (Stage 3)
+    DIV2KDataset(hr_dir=..., domain="surveillance", patch_size=48)
+    Like Mode B, but uses the domain-specific presets from domain_degradation.py.
+    Supports "mobile", "surveillance", and "dashcam".
+
+    Training (patch_size is not None):
+      Fresh degradation parameters are sampled each __getitem__ call,
+      so every epoch sees different random degradations. ✓
+
+    Validation (patch_size=None):
+      Degradation parameters are pre-sampled ONCE at dataset creation time.
+      The same validation image always gets the same degradation every epoch,
+      so PSNR numbers are comparable across epochs and across runs. ✓
+      (This works because train.py calls set_seed() before creating datasets.)
+
 Think of it as a vending machine:
   Mode A: you pre-packaged the snacks (LR files on disk)
-  Mode B: the machine makes each snack fresh every time you press the button
+  Mode B: the machine makes each snack fresh every time (generic recipe)
+  Mode C: the machine makes each snack fresh using a domain-specific recipe
 """
 
 import random
+import sys
 from pathlib import Path
 
 import torch
@@ -28,42 +45,118 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.transforms.functional import to_tensor
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+# Domain names supported by domain_degradation.py
+SUPPORTED_DOMAINS = ["mobile", "surveillance", "dashcam"]
+
 
 class DIV2KDataset(Dataset):
     """
     Loads (LR, HR) image pairs for super-resolution training and validation.
 
-    Arguments:
-      hr_dir         : folder with high-resolution images (always required)
-      lr_dir         : folder with pre-saved LR images (Mode A only)
-      degradation_fn : callable that turns a HR PIL image into a LR PIL image
-                       (Mode B only). Example: from degradation import degrade
-      patch_size     : LR patch size for training crops. Set None for full images.
-      scale          : upscale factor (default 4 — must match your pipeline)
+    Arguments
+    ---------
+    hr_dir         : str or Path — folder with high-resolution images (always required)
+    lr_dir         : str or Path — folder with pre-saved LR images (Mode A only)
+    degradation_fn : callable   — function that turns a HR PIL image into a LR PIL image
+                                  (Mode B only). Example: lambda img: degrade(img, scale=4)
+    patch_size     : int or None — LR crop size for training. None = use full images.
+    scale          : int         — upscale factor (default 4 — must match your pipeline)
+    domain         : str or None — one of "mobile", "surveillance", "dashcam" (Mode C).
+                                   When set, domain_degradation.degrade_domain() is used
+                                   and degradation_fn is ignored.
+    return_metadata: bool        — if True, __getitem__ returns (lr, hr, metadata) instead
+                                   of (lr, hr). metadata is the dict of sampled degradation
+                                   parameters for that sample.
+                                   Only populated in Mode C (domain degradation).
+                                   NOT compatible with PyTorch DataLoader — use direct
+                                   indexing (dataset[i]) for inspection and debugging.
+    return_cond_vector: bool     — if True, __getitem__ returns (lr, hr, cond_tensor) where
+                                   cond_tensor is a float32 tensor of shape (COND_DIM,)
+                                   built by cond_utils.build_cond_vector().
+                                   Only valid in Mode C (domain degradation).
+                                   IS compatible with PyTorch DataLoader — collates into
+                                   (lr_batch, hr_batch, cond_batch) of shape (B, COND_DIM).
 
-    patch_size controls training vs validation behaviour:
-      patch_size=48   → crops 48×48 LR and 192×192 HR patches for training
-      patch_size=None → returns full images for validation
+    patch_size controls training vs. validation behaviour:
+      patch_size=48   → returns 48×48 LR and 192×192 HR patches  (training)
+      patch_size=None → returns full images at their original size (validation)
     """
 
     SUPPORTED = {".png", ".jpg", ".jpeg", ".bmp", ".tiff"}
 
-    def __init__(self, hr_dir, lr_dir=None, degradation_fn=None,
-                 patch_size=None, scale=4):
-
-        if lr_dir is None and degradation_fn is None:
+    def __init__(
+        self,
+        hr_dir,
+        lr_dir=None,
+        degradation_fn=None,
+        patch_size=None,
+        scale=4,
+        domain=None,
+        return_metadata=False,
+        return_cond_vector=False,
+        curriculum_stage=None,
+    ):
+        # ── Validate arguments ────────────────────────────────────────────────
+        if lr_dir is None and degradation_fn is None and domain is None:
             raise ValueError(
-                "Provide either lr_dir (Mode A: pre-saved LR files) "
-                "or degradation_fn (Mode B: online degradation)."
+                "You must provide one LR source:\n"
+                "  lr_dir         — Mode A: load pre-saved LR files from disk\n"
+                "  degradation_fn — Mode B: generic online degradation function\n"
+                "  domain         — Mode C: domain-conditioned degradation preset"
             )
 
-        self.hr_dir         = Path(hr_dir)
-        self.lr_dir         = Path(lr_dir) if lr_dir else None
-        self.degradation_fn = degradation_fn
-        self.patch_size     = patch_size
-        self.scale          = scale
+        if domain is not None and domain not in SUPPORTED_DOMAINS:
+            raise ValueError(
+                f"Unknown domain '{domain}'. "
+                f"Supported: {SUPPORTED_DOMAINS}"
+            )
 
-        # Collect all HR filenames, sorted so order is consistent across runs
+        if return_cond_vector and domain is None:
+            raise ValueError(
+                "return_cond_vector=True requires domain to be set (Mode C). "
+                "Conditioning vectors are only available when domain degradation is used."
+            )
+
+        # ── Store settings ────────────────────────────────────────────────────
+        self.hr_dir             = Path(hr_dir)
+        self.lr_dir             = Path(lr_dir) if lr_dir else None
+        self.patch_size         = patch_size
+        self.scale              = scale
+        self.domain             = domain
+        self.return_metadata    = return_metadata
+        self.return_cond_vector = return_cond_vector
+
+        # curriculum_stage is intentionally mutable so the training loop can
+        # update it each epoch without recreating the dataset.
+        # Only used for TRAINING (patch_size is not None).
+        # Validation always uses pre-sampled params regardless of this field.
+        # Set by train.py: train_dataset.curriculum_stage = get_active_stage(epoch, cfg)
+        self.curriculum_stage = curriculum_stage
+
+        # Lazy-import build_cond_vector only when conditioning vectors are needed
+        if return_cond_vector:
+            from cond_utils import build_cond_vector as _bcv
+            self._build_cond_vector = _bcv
+        else:
+            self._build_cond_vector = None
+
+        # domain takes precedence over degradation_fn when both are supplied.
+        # We import lazily so the rest of the project doesn't depend on
+        # domain_degradation.py unless Mode C is actually used.
+        if domain is not None:
+            from domain_degradation import degrade_domain, sample_domain_params
+            self._degrade_domain       = degrade_domain
+            self._sample_domain_params = sample_domain_params
+            self.degradation_fn        = None   # domain overrides this
+        else:
+            self._degrade_domain       = None
+            self._sample_domain_params = None
+            self.degradation_fn        = degradation_fn
+
+        # ── Collect image filenames ───────────────────────────────────────────
+        # Sorted so the order is deterministic across runs and operating systems.
         self.filenames = sorted([
             p.name for p in self.hr_dir.iterdir()
             if p.suffix.lower() in self.SUPPORTED
@@ -72,6 +165,25 @@ class DIV2KDataset(Dataset):
         if not self.filenames:
             raise FileNotFoundError(f"No images found in {self.hr_dir}")
 
+        # ── Pre-sample validation parameters (Mode C, validation only) ────────
+        #
+        # For validation datasets (patch_size=None) in domain mode, we sample
+        # one set of degradation parameters per image right now, at construction
+        # time. From then on, dataset[i] always applies the same degradation to
+        # image i, so PSNR is meaningful and comparable across epochs.
+        #
+        # This works because train.py calls set_seed() before creating datasets,
+        # so the random state here is deterministic — same seed → same val params.
+        #
+        # For training datasets (patch_size is not None), we leave _val_params
+        # as None and sample fresh parameters every __getitem__ call instead.
+        self._val_params = None
+        if domain is not None and patch_size is None:
+            self._val_params = [
+                self._sample_domain_params(domain)
+                for _ in range(len(self.filenames))
+            ]
+
     def __len__(self):
         return len(self.filenames)
 
@@ -79,9 +191,9 @@ class DIV2KDataset(Dataset):
 
     def _find_lr_path(self, hr_filename: str) -> Path:
         """
-        Locates the LR file matching an HR filename.
+        Locates the LR file on disk that matches the given HR filename.
 
-        prepare_data.py always saves LR as .png even if HR is .jpg,
+        prepare_data.py always saves LR images as .png (even when the HR is .jpg),
         so we check both the exact name and a .png fallback.
         """
         exact = self.lr_dir / hr_filename
@@ -93,17 +205,18 @@ class DIV2KDataset(Dataset):
             return fallback
 
         raise FileNotFoundError(
-            f"No LR file found for {hr_filename} in {self.lr_dir}\n"
+            f"No LR file found for '{hr_filename}' in {self.lr_dir}\n"
             "Run prepare_data.py first, or switch to online degradation mode."
         )
 
-    def _paired_crop(self, lr_img: Image.Image,
-                     hr_img: Image.Image):
+    def _paired_crop(
+        self, lr_img: Image.Image, hr_img: Image.Image
+    ) -> tuple[Image.Image, Image.Image]:
         """
         (Mode A) Cuts matching crops from pre-aligned LR and HR images.
 
-        The crop origin is picked in LR space, then multiplied by scale
-        to get the matching position in HR space.
+        The crop origin is chosen in LR pixel space, then multiplied by scale
+        to find the exact matching position in HR pixel space.
         """
         lr_w, lr_h = lr_img.size
         max_x = lr_w - self.patch_size
@@ -112,33 +225,30 @@ class DIV2KDataset(Dataset):
         if max_x < 0 or max_y < 0:
             raise ValueError(
                 f"Image too small for patch_size={self.patch_size}. "
-                f"LR size: {lr_img.size}"
+                f"LR image size: {lr_img.size}"
             )
 
         lr_x = random.randint(0, max_x)
         lr_y = random.randint(0, max_y)
-        hr_x, hr_y = lr_x * self.scale, lr_y * self.scale
+        hr_x = lr_x * self.scale
+        hr_y = lr_y * self.scale
         hr_p = self.patch_size * self.scale
 
-        lr_crop = lr_img.crop((lr_x, lr_y,
-                                lr_x + self.patch_size,
-                                lr_y + self.patch_size))
-        hr_crop = hr_img.crop((hr_x, hr_y,
-                                hr_x + hr_p,
-                                hr_y + hr_p))
+        lr_crop = lr_img.crop((lr_x, lr_y, lr_x + self.patch_size, lr_y + self.patch_size))
+        hr_crop = hr_img.crop((hr_x, hr_y, hr_x + hr_p,            hr_y + hr_p))
         return lr_crop, hr_crop
 
-    # ── Mode B helpers ────────────────────────────────────────────────────────
+    # ── Mode B / C helper ─────────────────────────────────────────────────────
 
     def _hr_crop(self, hr_img: Image.Image) -> Image.Image:
         """
-        (Mode B) Cuts a random HR-sized patch from the HR image.
+        (Mode B / C) Cuts a random patch from the HR image.
 
-        The patch size in HR pixels is patch_size * scale.
-        Example: patch_size=48, scale=4 → crop 192×192 from HR.
+        The patch covers (patch_size × scale) pixels in HR space.
+        Example: patch_size=48, scale=4 → cut a 192×192 crop from the HR image.
 
-        We crop from HR only (no pre-saved LR), then call degradation_fn
-        to produce the matching LR patch.
+        We crop from HR only (there is no pre-saved LR), then the caller
+        passes the crop to the degradation function to produce the LR patch.
         """
         hr_patch = self.patch_size * self.scale
         hr_w, hr_h = hr_img.size
@@ -148,7 +258,7 @@ class DIV2KDataset(Dataset):
         if max_x < 0 or max_y < 0:
             raise ValueError(
                 f"Image too small for patch_size={self.patch_size} × scale={self.scale}. "
-                f"HR size: {hr_img.size}. Use a smaller patch_size."
+                f"HR size: {hr_img.size}. Reduce patch_size or use larger images."
             )
 
         hr_x = random.randint(0, max_x)
@@ -159,94 +269,241 @@ class DIV2KDataset(Dataset):
 
     def __getitem__(self, index: int):
         """
-        Returns one (lr_tensor, hr_tensor) pair.
+        Returns one training or validation sample.
 
-        Mode A flow:
-          load HR file + load LR file → crop matching patches → return tensors
+        Default return  (return_metadata=False):
+          (lr_tensor, hr_tensor)
+            lr_tensor : FloatTensor shape (3, lrH, lrW)  values in [0, 1]
+            hr_tensor : FloatTensor shape (3, hrH, hrW)  values in [0, 1]
 
-        Mode B flow:
-          load HR file → crop HR patch → degrade to make LR → return tensors
+        With return_metadata=True and domain mode:
+          (lr_tensor, hr_tensor, metadata)
+            metadata  : dict — the exact degradation parameters used.
+                        Use for logging, debugging, or reproducibility.
+                        Not suitable for use with DataLoader batching.
 
-        Both modes return:
-          lr_tensor : (3, patch_size, patch_size)          values in [0, 1]
-          hr_tensor : (3, patch_size*scale, patch_size*scale) values in [0, 1]
-          (or full image sizes if patch_size is None)
+        Mode A (pre-saved LR):
+          load HR + LR from disk → crop matching patches → tensors
+
+        Mode B (generic degradation_fn):
+          load HR → crop → call degradation_fn(hr_crop) → tensors
+
+        Mode C training (domain, patch_size is not None):
+          load HR → crop → sample fresh domain params → degrade → tensors [+ metadata]
+          (different params every call → diverse training data)
+
+        Mode C validation (domain, patch_size is None):
+          load HR → degrade with pre-sampled params[index] → tensors [+ metadata]
+          (same params every call for the same index → reproducible PSNR)
         """
         filename = self.filenames[index]
-        hr_img = Image.open(self.hr_dir / filename).convert("RGB")
+        hr_img   = Image.open(self.hr_dir / filename).convert("RGB")
+        metadata = {}   # only populated in Mode C
 
-        if self.degradation_fn is not None:
-            # ── Mode B: online degradation ────────────────────────────────
+        if self.domain is not None:
+            # ── Mode C: domain-conditioned degradation ────────────────────────
             if self.patch_size is not None:
-                # Cut HR patch first, then degrade it to get LR
+                # Training: crop a fresh HR patch, then sample degradation params.
+                # If a curriculum stage is set, use curriculum parameter ranges
+                # instead of the domain preset so difficulty increases over epochs.
                 hr_img = self._hr_crop(hr_img)
+                if self.curriculum_stage is not None:
+                    # Lazy import — only used when curriculum is active
+                    from curriculum import sample_curriculum_params
+                    train_params = sample_curriculum_params(self.domain,
+                                                            self.curriculum_stage)
+                    lr_img, metadata = self._degrade_domain(
+                        hr_img, scale=self.scale, domain=self.domain,
+                        params=train_params,
+                    )
+                else:
+                    lr_img, metadata = self._degrade_domain(
+                        hr_img, scale=self.scale, domain=self.domain,
+                    )
+            else:
+                # Validation: use the pre-sampled params so results are stable
+                lr_img, metadata = self._degrade_domain(
+                    hr_img,
+                    scale=self.scale,
+                    domain=self.domain,
+                    params=self._val_params[index],
+                )
 
+        elif self.degradation_fn is not None:
+            # ── Mode B: generic online degradation ────────────────────────────
+            if self.patch_size is not None:
+                hr_img = self._hr_crop(hr_img)
             lr_img = self.degradation_fn(hr_img)
 
         else:
-            # ── Mode A: load pre-saved LR from disk ───────────────────────
+            # ── Mode A: load pre-saved LR from disk ───────────────────────────
             lr_img = Image.open(self._find_lr_path(filename)).convert("RGB")
-
             if self.patch_size is not None:
                 lr_img, hr_img = self._paired_crop(lr_img, hr_img)
 
-        # to_tensor: PIL image (H × W × C, 0-255) → tensor (C × H × W, 0.0-1.0)
-        return to_tensor(lr_img), to_tensor(hr_img)
+        # to_tensor converts a PIL image (H × W × C, uint8 0-255)
+        #                           to a tensor (C × H × W, float32 0.0-1.0)
+        lr_tensor = to_tensor(lr_img)
+        hr_tensor = to_tensor(hr_img)
+
+        if self.return_cond_vector:
+            # Build a fixed-shape float tensor from the metadata dict.
+            # This IS DataLoader-safe — shape (COND_DIM,) collates cleanly.
+            cond = self._build_cond_vector(metadata)
+            return lr_tensor, hr_tensor, cond
+
+        if self.return_metadata:
+            return lr_tensor, hr_tensor, metadata
+
+        return lr_tensor, hr_tensor
 
 
 # ── Quick self-test ────────────────────────────────────────────────────────────
-# Run: python scripts/dataset.py
+# Run:  python scripts/dataset.py
+# from the ml_project/ directory.
 
 if __name__ == "__main__":
     from degradation import degrade
 
     base = Path(__file__).parent.parent / "data" / "DIV2K"
+    SCALE = 4
+    PATCH = 48
 
-    # ── Test Mode A (pre-saved LR) ────────────────────────────────────────────
-    print("Mode A — pre-saved LR files:")
+    def section(title: str):
+        print(f"\n{'=' * 60}")
+        print(f"  {title}")
+        print("=" * 60)
+
+    # ── Mode A: pre-saved LR ──────────────────────────────────────────────────
+    section("Mode A — pre-saved LR files (Stage 1)")
     try:
-        val_ds = DIV2KDataset(hr_dir=base / "HR_valid",
-                              lr_dir=base / "LR_valid")
+        val_ds = DIV2KDataset(hr_dir=base / "HR_valid", lr_dir=base / "LR_valid")
         lr, hr = val_ds[0]
         print(f"  Full image  — LR: {tuple(lr.shape)}  HR: {tuple(hr.shape)}")
 
-        train_ds = DIV2KDataset(hr_dir=base / "HR_train",
-                                lr_dir=base / "LR_train",
-                                patch_size=48, scale=4)
+        train_ds = DIV2KDataset(hr_dir=base / "HR_train", lr_dir=base / "LR_train",
+                                patch_size=PATCH, scale=SCALE)
         lr, hr = train_ds[0]
+        assert lr.shape == torch.Size([3, PATCH, PATCH])
+        assert hr.shape == torch.Size([3, PATCH * SCALE, PATCH * SCALE])
         print(f"  Patch mode  — LR: {tuple(lr.shape)}  HR: {tuple(hr.shape)}")
-        assert lr.shape == torch.Size([3, 48, 48])
-        assert hr.shape == torch.Size([3, 192, 192])
-        print("  Shape check passed.")
+        print("  Shape check passed.  ✓")
     except FileNotFoundError as e:
-        print(f"  Skipped (LR files not found — run prepare_data.py first):\n  {e}")
+        print(f"  Skipped — LR files not found (run prepare_data.py first):\n  {e}")
 
-    # ── Test Mode B (online degradation) ──────────────────────────────────────
-    print("\nMode B — online degradation:")
+    # ── Mode B: generic degradation_fn ────────────────────────────────────────
+    section("Mode B — generic online degradation (Stage 2, unchanged)")
     try:
-        def deg_fn(img):
-            return degrade(img, scale=4)
-
-        train_ds_online = DIV2KDataset(
+        ds_b = DIV2KDataset(
             hr_dir=base / "HR_train",
-            degradation_fn=deg_fn,
-            patch_size=48, scale=4,
+            degradation_fn=lambda img: degrade(img, scale=SCALE),
+            patch_size=PATCH, scale=SCALE,
         )
-        print(f"  {len(train_ds_online)} HR image(s) found.")
-        lr, hr = train_ds_online[0]
+        lr, hr = ds_b[0]
+        assert lr.shape == torch.Size([3, PATCH, PATCH])
+        assert hr.shape == torch.Size([3, PATCH * SCALE, PATCH * SCALE])
         print(f"  Patch mode  — LR: {tuple(lr.shape)}  HR: {tuple(hr.shape)}")
-        assert lr.shape == torch.Size([3, 48, 48])
-        assert hr.shape == torch.Size([3, 192, 192])
-        print("  Shape check passed.")
+        print("  Shape check passed.  ✓")
 
-        # Check that two calls to the same index give different LR
-        import numpy as np
-        lr_a, _ = train_ds_online[0]
-        lr_b, _ = train_ds_online[0]
-        assert not torch.equal(lr_a, lr_b), \
-            "Two calls should produce different random degradations!"
-        print("  Randomness check passed.")
+        lr_a, _ = ds_b[0]
+        lr_b, _ = ds_b[0]
+        assert not torch.equal(lr_a, lr_b)
+        print("  Randomness check passed (two calls differ).  ✓")
     except FileNotFoundError as e:
-        print(f"  Skipped (HR images not found): {e}")
+        print(f"  Skipped — HR images not found:\n  {e}")
 
-    print("\ndataset.py is working correctly.")
+    # ── Mode C: domain-conditioned training ───────────────────────────────────
+    for domain in SUPPORTED_DOMAINS:
+        section(f"Mode C — '{domain}' domain, training (patch_size={PATCH})")
+        try:
+            ds_c = DIV2KDataset(
+                hr_dir=base / "HR_train",
+                patch_size=PATCH, scale=SCALE,
+                domain=domain,
+            )
+            print(f"  {len(ds_c)} HR image(s) found.")
+
+            lr, hr = ds_c[0]
+            assert lr.shape == torch.Size([3, PATCH, PATCH]), \
+                f"LR shape wrong: {lr.shape}"
+            assert hr.shape == torch.Size([3, PATCH * SCALE, PATCH * SCALE]), \
+                f"HR shape wrong: {hr.shape}"
+            print(f"  Patch mode  — LR: {tuple(lr.shape)}  HR: {tuple(hr.shape)}")
+            print("  Shape check passed.  ✓")
+
+            # Training calls should produce different LR for the same index
+            lr_a, _ = ds_c[0]
+            lr_b, _ = ds_c[0]
+            assert not torch.equal(lr_a, lr_b), \
+                "Training should give fresh degradation every call!"
+            print("  Training randomness check passed.  ✓")
+        except FileNotFoundError as e:
+            print(f"  Skipped — HR images not found:\n  {e}")
+
+    # ── Mode C + return_metadata ──────────────────────────────────────────────
+    section("Mode C — return_metadata=True  (surveillance domain)")
+    try:
+        ds_meta = DIV2KDataset(
+            hr_dir=base / "HR_train",
+            patch_size=PATCH, scale=SCALE,
+            domain="surveillance",
+            return_metadata=True,
+        )
+        result = ds_meta[0]
+        assert len(result) == 3, "Expected (lr, hr, metadata) tuple of length 3"
+        lr, hr, metadata = result
+
+        print(f"  LR: {tuple(lr.shape)}  HR: {tuple(hr.shape)}")
+        print(f"  metadata keys : {list(metadata.keys())}")
+
+        s1 = metadata["stage1"]
+        print(f"  stage1:")
+        print(f"    blur_sigma   : {s1['blur_sigma']:.3f}")
+        print(f"    resize_method: {s1['resize_method']}")
+        print(f"    noise_sigma  : {s1['noise_sigma']:.1f}")
+        print(f"    jpeg_quality : {s1['jpeg_quality']}")
+
+        if metadata["stage2"] is not None:
+            s2 = metadata["stage2"]
+            print(f"  stage2 (applied):")
+            print(f"    blur_sigma   : {s2['blur_sigma']:.3f}")
+            print(f"    noise_sigma  : {s2['noise_sigma']:.1f}")
+            print(f"    jpeg_quality : {s2['jpeg_quality']}")
+        else:
+            print("  stage2: skipped this sample")
+
+        print("  Metadata shape + keys check passed.  ✓")
+    except FileNotFoundError as e:
+        print(f"  Skipped — HR images not found:\n  {e}")
+
+    # ── Mode C validation: determinism check ──────────────────────────────────
+    section("Mode C — deterministic validation (dashcam, patch_size=None)")
+    try:
+        val_domain = DIV2KDataset(
+            hr_dir=base / "HR_valid",
+            patch_size=None, scale=SCALE,
+            domain="dashcam",
+        )
+        print(f"  {len(val_domain)} validation image(s) found.")
+        print(f"  {len(val_domain._val_params)} pre-sampled parameter sets.")
+
+        # Same index must give identical LR every call
+        lr_a, _ = val_domain[0]
+        lr_b, _ = val_domain[0]
+        assert torch.equal(lr_a, lr_b), \
+            "Validation should return identical LR for repeated calls on the same index!"
+        print("  Reproducibility check passed (same index → same LR).  ✓")
+
+        # Different indices must give different LR
+        lr_0, _ = val_domain[0]
+        lr_1, _ = val_domain[1]
+        assert not torch.equal(lr_0, lr_1), \
+            "Different indices should give different LR tensors!"
+        print("  Diversity check passed (different indices → different LR).  ✓")
+
+    except FileNotFoundError as e:
+        print(f"  Skipped — HR_valid images not found:\n  {e}")
+
+    print("\n" + "=" * 60)
+    print("  dataset.py self-test complete.")
+    print("=" * 60)

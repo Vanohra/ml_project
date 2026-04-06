@@ -2,3 +2,11 @@ Pillow
 torch
 torchvision
 numpy
+pyyaml
+
+# Required for SSIM in evaluate_paired.py
+scikit-image
+
+# Optional — install for additional evaluation metrics:
+# pip install lpips      (LPIPS perceptual similarity in evaluate_paired.py)
+# pip install piq        (NIQE + BRISQUE in evaluate_noref.py)

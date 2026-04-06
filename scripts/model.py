@@ -41,7 +41,14 @@ class SimpleSRCNN(nn.Module):
     Every model must define:
       __init__  : create the layers
       forward   : describe how data flows through those layers
+
+    Attribute:
+        expects_upsampled_input = True
+            Tells train.py that this model receives a bicubic-upsampled LR image
+            (already at HR spatial size), not a raw LR image.
     """
+
+    expects_upsampled_input = True   # train.py reads this to prepare model input
 
     def __init__(self):
         super().__init__()   # always call this first

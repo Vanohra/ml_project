@@ -1,0 +1,60 @@
+# conditioned_srresnet.yaml
+# --------------------------
+# Sample config for training ConditionedSRResNet on a single domain.
+#
+# The conditioned model takes BOTH the LR image AND a degradation metadata
+# vector as input.  It uses FiLM conditioning to modulate its internal feature
+# maps based on the actual degradation parameters (blur, noise, JPEG quality,
+# domain) that were applied to produce each LR image.
+#
+# Requirements:
+#   • data.domain must be set (the model needs metadata to build the cond vector)
+#   • data.use_online_degradation must be true  (only Mode C provides metadata)
+#
+# Training time vs SRResNet:
+#   The FiLM conditioning adds ~72K parameters on top of SRResNet (~957K).
+#   Total: ~1.03M parameters.  Training time is roughly the same as SRResNet.
+#
+# Usage:
+#   python scripts/train.py --config configs/conditioned_srresnet.yaml
+#   python scripts/train.py --config configs/conditioned_srresnet.yaml --experiment cond_surv
+
+experiment:
+  name: cond_srresnet_mobile    # outputs → outputs/experiments/cond_srresnet_mobile/
+  seed: 42
+
+model:
+  name: conditioned_srresnet    # key model selector — enables FiLM conditioning
+
+  # These settings are the same as SRResNet:
+  num_res_blocks: 8             # residual blocks (try 16 for stronger results)
+  num_features: 64              # feature channels
+
+  # Conditioning-specific:
+  embed_dim: 64                 # metadata embedding size (keep equal to num_features)
+
+training:
+  num_epochs: 100               # conditioned models benefit from more epochs
+  batch_size: 16                # reduce to 8 or 4 if out-of-memory
+  learning_rate: 0.0001
+  patch_size: 48
+  scale: 4
+  log_every: 10
+
+data:
+  hr_train_dir: data/DIV2K/HR_train
+  hr_valid_dir: data/DIV2K/HR_valid
+  lr_train_dir: data/DIV2K/LR_train   # not used (online degradation is on)
+  lr_valid_dir: data/DIV2K/LR_valid   # not used
+
+  use_online_degradation: true  # must be true for conditioning to work
+
+  # domain MUST be set for conditioned_srresnet.
+  # Conditioning vectors are only generated in Mode C (domain degradation).
+  # Options: mobile | surveillance | dashcam
+  domain: mobile
+
+output:
+  base_dir: outputs/experiments
+  save_samples_every: 5
+  num_sample_images: 4
