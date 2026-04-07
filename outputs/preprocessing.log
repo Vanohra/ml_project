@@ -1,0 +1,154 @@
+2026-03-31 16:26:31  INFO      ============================================================
+2026-03-31 16:26:31  INFO      Starting preprocessing
+2026-03-31 16:26:31  INFO      Scale factor : x4
+2026-03-31 16:26:31  INFO      Blur         : True  (radius=1)
+2026-03-31 16:26:31  INFO      JPEG quality : True  (quality=75)
+2026-03-31 16:26:31  INFO      ============================================================
+2026-03-31 16:26:31  INFO      --- HR_train  →  LR_train ---
+2026-03-31 16:26:31  INFO      Found 100 image(s) in HR_train
+2026-03-31 16:26:32  INFO      [1/100] OK    0001.png  HR=2040x1404  LR=510x351  blur=True  jpeg=True
+2026-03-31 16:26:32  INFO      [2/100] OK    0002.png  HR=2040x1848  LR=510x462  blur=True  jpeg=True
+2026-03-31 16:26:33  INFO      [3/100] OK    0003.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:33  INFO      [4/100] OK    0004.png  HR=2040x1344  LR=510x336  blur=True  jpeg=True
+2026-03-31 16:26:33  INFO      [5/100] OK    0005.png  HR=1608x2040  LR=402x510  blur=True  jpeg=True
+2026-03-31 16:26:34  INFO      [6/100] OK    0006.png  HR=1356x2040  LR=339x510  blur=True  jpeg=True
+2026-03-31 16:26:34  INFO      [7/100] OK    0007.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:35  INFO      [8/100] OK    0008.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:35  INFO      [9/100] OK    0009.png  HR=2040x1524  LR=510x381  blur=True  jpeg=True
+2026-03-31 16:26:35  INFO      [10/100] OK    0010.png  HR=2040x1644  LR=510x411  blur=True  jpeg=True
+2026-03-31 16:26:36  INFO      [11/100] OK    0011.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:36  INFO      [12/100] OK    0012.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:37  INFO      [13/100] OK    0013.png  HR=2040x1368  LR=510x342  blur=True  jpeg=True
+2026-03-31 16:26:37  INFO      [14/100] OK    0014.png  HR=1356x2040  LR=339x510  blur=True  jpeg=True
+2026-03-31 16:26:37  INFO      [15/100] OK    0015.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:38  INFO      [16/100] OK    0016.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:38  INFO      [17/100] OK    0017.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:38  INFO      [18/100] OK    0018.png  HR=2040x1368  LR=510x342  blur=True  jpeg=True
+2026-03-31 16:26:39  INFO      [19/100] OK    0019.png  HR=2040x1536  LR=510x384  blur=True  jpeg=True
+2026-03-31 16:26:39  INFO      [20/100] OK    0020.png  HR=2040x1392  LR=510x348  blur=True  jpeg=True
+2026-03-31 16:26:39  INFO      [21/100] OK    0021.png  HR=2040x768  LR=510x192  blur=True  jpeg=True
+2026-03-31 16:26:40  INFO      [22/100] OK    0022.png  HR=2040x960  LR=510x240  blur=True  jpeg=True
+2026-03-31 16:26:40  INFO      [23/100] OK    0023.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:40  INFO      [24/100] OK    0024.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:41  INFO      [25/100] OK    0025.png  HR=1140x2040  LR=285x510  blur=True  jpeg=True
+2026-03-31 16:26:41  INFO      [26/100] OK    0026.png  HR=2040x1536  LR=510x384  blur=True  jpeg=True
+2026-03-31 16:26:41  INFO      [27/100] OK    0027.png  HR=2040x1548  LR=510x387  blur=True  jpeg=True
+2026-03-31 16:26:42  INFO      [28/100] OK    0028.png  HR=2040x1992  LR=510x498  blur=True  jpeg=True
+2026-03-31 16:26:42  INFO      [29/100] OK    0029.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:43  INFO      [30/100] OK    0030.png  HR=2040x1272  LR=510x318  blur=True  jpeg=True
+2026-03-31 16:26:43  INFO      [31/100] OK    0031.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:43  INFO      [32/100] OK    0032.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:44  INFO      [33/100] OK    0033.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:44  INFO      [34/100] OK    0034.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:45  INFO      [35/100] OK    0035.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:45  INFO      [36/100] OK    0036.png  HR=2040x1536  LR=510x384  blur=True  jpeg=True
+2026-03-31 16:26:45  INFO      [37/100] OK    0037.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:46  INFO      [38/100] OK    0038.png  HR=2040x1224  LR=510x306  blur=True  jpeg=True
+2026-03-31 16:26:46  INFO      [39/100] OK    0039.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:46  INFO      [40/100] OK    0040.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:47  INFO      [41/100] OK    0041.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:47  INFO      [42/100] OK    0042.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:47  INFO      [43/100] OK    0043.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:48  INFO      [44/100] OK    0044.png  HR=2040x2040  LR=510x510  blur=True  jpeg=True
+2026-03-31 16:26:48  INFO      [45/100] OK    0045.png  HR=2040x1140  LR=510x285  blur=True  jpeg=True
+2026-03-31 16:26:49  INFO      [46/100] OK    0046.png  HR=1356x2040  LR=339x510  blur=True  jpeg=True
+2026-03-31 16:26:49  INFO      [47/100] OK    0047.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:49  INFO      [48/100] OK    0048.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:50  INFO      [49/100] OK    0049.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:50  INFO      [50/100] OK    0050.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:50  INFO      [51/100] OK    0051.png  HR=2040x1368  LR=510x342  blur=True  jpeg=True
+2026-03-31 16:26:51  INFO      [52/100] OK    0052.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:51  INFO      [53/100] OK    0053.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:52  INFO      [54/100] OK    0054.png  HR=2040x1332  LR=510x333  blur=True  jpeg=True
+2026-03-31 16:26:52  INFO      [55/100] OK    0055.png  HR=2040x1152  LR=510x288  blur=True  jpeg=True
+2026-03-31 16:26:52  INFO      [56/100] OK    0056.png  HR=2040x1380  LR=510x345  blur=True  jpeg=True
+2026-03-31 16:26:53  INFO      [57/100] OK    0057.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:53  INFO      [58/100] OK    0058.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:53  INFO      [59/100] OK    0059.png  HR=1644x2040  LR=411x510  blur=True  jpeg=True
+2026-03-31 16:26:54  INFO      [60/100] OK    0060.png  HR=2040x1224  LR=510x306  blur=True  jpeg=True
+2026-03-31 16:26:54  INFO      [61/100] OK    0061.png  HR=1284x2040  LR=321x510  blur=True  jpeg=True
+2026-03-31 16:26:54  INFO      [62/100] OK    0062.png  HR=2040x1428  LR=510x357  blur=True  jpeg=True
+2026-03-31 16:26:55  INFO      [63/100] OK    0063.png  HR=2040x1584  LR=510x396  blur=True  jpeg=True
+2026-03-31 16:26:55  INFO      [64/100] OK    0064.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:56  INFO      [65/100] OK    0065.png  HR=2040x1188  LR=510x297  blur=True  jpeg=True
+2026-03-31 16:26:56  INFO      [66/100] OK    0066.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:56  INFO      [67/100] OK    0067.png  HR=2040x1320  LR=510x330  blur=True  jpeg=True
+2026-03-31 16:26:57  INFO      [68/100] OK    0068.png  HR=2040x1380  LR=510x345  blur=True  jpeg=True
+2026-03-31 16:26:57  INFO      [69/100] OK    0069.png  HR=1248x2040  LR=312x510  blur=True  jpeg=True
+2026-03-31 16:26:57  INFO      [70/100] OK    0070.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:58  INFO      [71/100] OK    0071.png  HR=1356x2040  LR=339x510  blur=True  jpeg=True
+2026-03-31 16:26:58  INFO      [72/100] OK    0072.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:58  INFO      [73/100] OK    0073.png  HR=2040x1140  LR=510x285  blur=True  jpeg=True
+2026-03-31 16:26:59  INFO      [74/100] OK    0074.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:26:59  INFO      [75/100] OK    0075.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:00  INFO      [76/100] OK    0076.png  HR=2040x1572  LR=510x393  blur=True  jpeg=True
+2026-03-31 16:27:00  INFO      [77/100] OK    0077.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:00  INFO      [78/100] OK    0078.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:01  INFO      [79/100] OK    0079.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:01  INFO      [80/100] OK    0080.png  HR=2040x1332  LR=510x333  blur=True  jpeg=True
+2026-03-31 16:27:01  INFO      [81/100] OK    0081.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:02  INFO      [82/100] OK    0082.png  HR=2040x1212  LR=510x303  blur=True  jpeg=True
+2026-03-31 16:27:02  INFO      [83/100] OK    0083.png  HR=2040x1164  LR=510x291  blur=True  jpeg=True
+2026-03-31 16:27:02  INFO      [84/100] OK    0084.png  HR=2040x1368  LR=510x342  blur=True  jpeg=True
+2026-03-31 16:27:03  INFO      [85/100] OK    0085.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:03  INFO      [86/100] OK    0086.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:03  INFO      [87/100] OK    0087.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:04  INFO      [88/100] OK    0088.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:04  INFO      [89/100] OK    0089.png  HR=1536x2040  LR=384x510  blur=True  jpeg=True
+2026-03-31 16:27:05  INFO      [90/100] OK    0090.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:05  INFO      [91/100] OK    0091.png  HR=2040x1536  LR=510x384  blur=True  jpeg=True
+2026-03-31 16:27:05  INFO      [92/100] OK    0092.png  HR=2040x1152  LR=510x288  blur=True  jpeg=True
+2026-03-31 16:27:06  INFO      [93/100] OK    0093.png  HR=2040x1368  LR=510x342  blur=True  jpeg=True
+2026-03-31 16:27:06  INFO      [94/100] OK    0094.png  HR=2040x1272  LR=510x318  blur=True  jpeg=True
+2026-03-31 16:27:06  INFO      [95/100] OK    0095.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:07  INFO      [96/100] OK    0096.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:07  INFO      [97/100] OK    0097.png  HR=2040x1188  LR=510x297  blur=True  jpeg=True
+2026-03-31 16:27:08  INFO      [98/100] OK    0098.png  HR=2040x1536  LR=510x384  blur=True  jpeg=True
+2026-03-31 16:27:08  INFO      [99/100] OK    0099.png  HR=2040x1536  LR=510x384  blur=True  jpeg=True
+2026-03-31 16:27:08  INFO      [100/100] OK    0100.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:08  INFO      --- HR_valid  →  LR_valid ---
+2026-03-31 16:27:08  INFO      Found 40 image(s) in HR_valid
+2026-03-31 16:27:09  INFO      [1/40] OK    0801.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:09  INFO      [2/40] OK    0802.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:10  INFO      [3/40] OK    0803.png  HR=2040x1536  LR=510x384  blur=True  jpeg=True
+2026-03-31 16:27:10  INFO      [4/40] OK    0804.png  HR=2040x1200  LR=510x300  blur=True  jpeg=True
+2026-03-31 16:27:10  INFO      [5/40] OK    0805.png  HR=2040x1536  LR=510x384  blur=True  jpeg=True
+2026-03-31 16:27:11  INFO      [6/40] OK    0806.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:11  INFO      [7/40] OK    0807.png  HR=2040x1128  LR=510x282  blur=True  jpeg=True
+2026-03-31 16:27:12  INFO      [8/40] OK    0808.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:12  INFO      [9/40] OK    0809.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:12  INFO      [10/40] OK    0810.png  HR=2040x1536  LR=510x384  blur=True  jpeg=True
+2026-03-31 16:27:13  INFO      [11/40] OK    0811.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:13  INFO      [12/40] OK    0812.png  HR=2040x1536  LR=510x384  blur=True  jpeg=True
+2026-03-31 16:27:13  INFO      [13/40] OK    0813.png  HR=2040x1464  LR=510x366  blur=True  jpeg=True
+2026-03-31 16:27:14  INFO      [14/40] OK    0814.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:14  INFO      [15/40] OK    0815.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:15  INFO      [16/40] OK    0816.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:15  INFO      [17/40] OK    0817.png  HR=2040x1536  LR=510x384  blur=True  jpeg=True
+2026-03-31 16:27:15  INFO      [18/40] OK    0818.png  HR=2040x1536  LR=510x384  blur=True  jpeg=True
+2026-03-31 16:27:16  INFO      [19/40] OK    0819.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:16  INFO      [20/40] OK    0820.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:17  INFO      [21/40] OK    0821.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:17  INFO      [22/40] OK    0822.png  HR=2040x1596  LR=510x399  blur=True  jpeg=True
+2026-03-31 16:27:17  INFO      [23/40] OK    0823.png  HR=2040x1284  LR=510x321  blur=True  jpeg=True
+2026-03-31 16:27:18  INFO      [24/40] OK    0824.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:18  INFO      [25/40] OK    0825.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:18  INFO      [26/40] OK    0826.png  HR=2040x1536  LR=510x384  blur=True  jpeg=True
+2026-03-31 16:27:19  INFO      [27/40] OK    0827.png  HR=2040x1536  LR=510x384  blur=True  jpeg=True
+2026-03-31 16:27:19  INFO      [28/40] OK    0828.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:20  INFO      [29/40] OK    0829.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:20  INFO      [30/40] OK    0830.png  HR=2040x816  LR=510x204  blur=True  jpeg=True
+2026-03-31 16:27:20  INFO      [31/40] OK    0831.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:21  INFO      [32/40] OK    0832.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:21  INFO      [33/40] OK    0833.png  HR=2040x1548  LR=510x387  blur=True  jpeg=True
+2026-03-31 16:27:21  INFO      [34/40] OK    0834.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:22  INFO      [35/40] OK    0835.png  HR=1620x2040  LR=405x510  blur=True  jpeg=True
+2026-03-31 16:27:22  INFO      [36/40] OK    0836.png  HR=2040x1536  LR=510x384  blur=True  jpeg=True
+2026-03-31 16:27:23  INFO      [37/40] OK    0837.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:23  INFO      [38/40] OK    0838.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:23  INFO      [39/40] OK    0839.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:24  INFO      [40/40] OK    0840.png  HR=2040x1356  LR=510x339  blur=True  jpeg=True
+2026-03-31 16:27:24  INFO      ============================================================
+2026-03-31 16:27:24  INFO      DONE — processed: 140 | skipped: 0 | errors: 0
+2026-03-31 16:27:24  INFO      Log saved to: c:\Users\danyg\OneDrive\Desktop\ML_Project\ml_project\outputs\preprocessing.log
+2026-03-31 16:27:24  INFO      Next step: python scripts/baseline.py

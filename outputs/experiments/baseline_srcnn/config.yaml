@@ -1,0 +1,123 @@
+# configs/default.yaml
+# ---------------------
+# All training settings for SimpleSRCNN.
+# Edit this file to change hyperparameters — no need to touch train.py.
+#
+# To run a new experiment with different settings, copy this file and pass
+# the new config to train.py:
+#
+#   python scripts/train.py --config configs/my_experiment.yaml
+#   python scripts/train.py --experiment my_run_name   # override just the name
+
+experiment:
+  name: baseline_srcnn   # Output goes to outputs/experiments/baseline_srcnn/
+  seed: 42               # Fixed seed for reproducibility (any integer works)
+
+model:
+  name: srcnn            # srcnn  — fast, tiny (~57K params), good for quick runs
+                         # srresnet — deeper, stronger (~957K params), higher PSNR
+  # SRResNet-only settings (ignored when name is srcnn):
+  num_res_blocks: 8      # residual blocks — original paper used 16; 8 is a good start
+  num_features: 64       # feature channels — 64 is standard; lower = faster but weaker
+
+data:
+  # Paths are relative to ml_project/
+  hr_train_dir: data/DIV2K/HR_train
+  hr_valid_dir: data/DIV2K/HR_valid
+  lr_train_dir: data/DIV2K/LR_train   # Only used when use_online_degradation is false
+  lr_valid_dir: data/DIV2K/LR_valid
+
+  # true  = Stage 2/3: generate LR on-the-fly (recommended)
+  # false = Stage 1: load pre-saved LR files from lr_train_dir (run prepare_data.py first)
+  use_online_degradation: true
+
+  # Domain-conditioned degradation preset (Stage 3).
+  # null          = generic degradation from degradation.py  (Stage 2 behaviour)
+  # "mobile"      = smartphone camera preset
+  # "surveillance" = CCTV / IP camera preset
+  # "dashcam"     = vehicle-mounted camera preset
+  # When domain is set, the validation dataset also uses domain degradation
+  # with fixed pre-sampled parameters so PSNR is comparable across epochs.
+  domain: null
+
+training:
+  num_epochs: 50          # Total training epochs (more = longer, potentially better)
+  batch_size: 16          # Images per training step (reduce to 8 or 4 if out-of-memory)
+  learning_rate: 0.0001   # Adam optimizer step size (1e-4 is a solid default)
+  patch_size: 48          # LR crop size for training (HR crop = 48 × 4 = 192)
+  scale: 4                # Super-resolution upscale factor (must match prepare_data.py)
+  log_every: 10           # Print batch loss every N batches
+
+output:
+  base_dir: outputs/experiments   # All experiments live here
+  save_samples_every: 5           # Save visual comparisons every N epochs
+  num_sample_images: 4            # How many validation images to compare per save
+
+# ── Loss function configuration ───────────────────────────────────────────────
+# Controls which loss terms are active and how much each one contributes.
+#
+# pixel      — Pixel-space reconstruction loss.  Always active.
+#   type       "l1"  (recommended) — sharper results, more stable than mse
+#              "mse"               — blurrier but higher PSNR on paper
+#   weight     Scale factor applied to this term.  Keep at 1.0.
+#
+# perceptual — Feature-space loss using VGG16 (pretrained on ImageNet).
+#   enabled    false by default.  Set to true to activate.
+#   weight     Perceptual loss weight relative to pixel loss.
+#              0.05–0.1  safe range: adds texture detail without artifacts
+#              above 0.5  risky: may cause hallucinated textures
+#   layer      "relu2_2"  (default, recommended) — mid-level texture features
+#              "relu3_3"  — deeper features, more semantic but riskier
+#
+# Note: torchvision is already installed.  VGG16 weights (~58 MB) download
+# automatically from PyTorch Hub on the first run with perceptual enabled.
+#
+loss:
+  pixel:
+    type: l1        # "l1" or "mse"
+    weight: 1.0
+  perceptual:
+    enabled: false  # set to true to add VGG16 feature loss
+    weight: 0.1
+    layer: relu2_2  # "relu2_2" (safer) or "relu3_3" (deeper)
+
+# ── Curriculum training (optional) ────────────────────────────────────────────
+# Progressively increases degradation difficulty during training.
+# Requires: data.use_online_degradation=true  AND  data.domain set (Mode C).
+# Set enabled=true and adjust start_epoch thresholds to your total epoch count.
+#
+# Validation always uses the full domain preset — curriculum only affects training.
+# Progress is written to metrics/curriculum_log.json after every epoch.
+curriculum:
+  enabled: false     # flip to true to activate
+
+  stages:
+    # ── Easy: mild degradation — model learns basic SR first ─────────────────
+    - name: easy
+      start_epoch: 1
+      blur_sigma: [0.2, 1.0]       # gentle blur only
+      noise_sigma: [0, 8]          # barely visible noise
+      noise_probability: 0.50      # only half of images get noise
+      jpeg_quality: [80, 95]       # near-lossless compression
+      jpeg_probability: 0.70
+      second_stage_probability: 0.0   # no second degradation pass yet
+
+    # ── Medium: moderate degradation ─────────────────────────────────────────
+    - name: medium
+      start_epoch: 20              # advance at epoch 20 (adjust to your num_epochs)
+      blur_sigma: [0.3, 2.5]
+      noise_sigma: [5, 25]
+      noise_probability: 0.75
+      jpeg_quality: [50, 85]
+      jpeg_probability: 0.85
+      second_stage_probability: 0.30
+
+    # ── Hard: full-range degradation — matches real-world conditions ──────────
+    - name: hard
+      start_epoch: 40              # advance at epoch 40
+      blur_sigma: [0.5, 4.0]
+      noise_sigma: [10, 45]
+      noise_probability: 0.90
+      jpeg_quality: [20, 70]
+      jpeg_probability: 0.95
+      second_stage_probability: 0.70

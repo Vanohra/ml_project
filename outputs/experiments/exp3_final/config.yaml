@@ -1,0 +1,120 @@
+# configs/exp3_final.yaml
+# ========================
+# EXPERIMENT 3 of 3 — Final model (full proposal)
+#
+# Question answered: Does degradation-aware conditioning with curriculum training
+#                   improve over plain SRResNet on the same domain?
+#
+# What changes vs Exp 2:
+#   • Model:  ConditionedSRResNet (~1.03M params)
+#             Same SRResNet backbone + FiLM conditioning on a 13-element
+#             degradation metadata vector (blur σ, noise σ, JPEG quality,
+#             resize method, stage 2 activity, domain one-hot).
+#             FiLM layers initialise to identity so stability = SRResNet from ep 1.
+#   • Curriculum: 3 stages of increasing surveillance degradation severity
+#             Easy (ep 1–33): lighter CCTV degradation — model learns basic SR
+#             Medium (ep 34–66): approaching full surveillance range
+#             Hard (ep 67–100): full surveillance preset = validation distribution
+#             Validation always uses the FULL preset, so PSNR is comparable
+#             across all epochs regardless of training stage.
+#   • Loss:   Adds VGG16 perceptual loss at weight 0.05 (conservative)
+#             VGG16 is frozen — cannot destabilise training.
+#             Adds texture sharpness without risking artifacts.
+#
+# What stays the same vs Exp 2:
+#   Surveillance domain.  L1 pixel loss (still dominant at weight 1.0).
+#   Same 100 epochs, same batch size, same seed.
+#
+# What it isolates (vs exp2):
+#   Degradation-aware conditioning + curriculum training + perceptual loss.
+#   This is three changes at once, which is deliberate for a final run —
+#   all three are described in the proposal and reinforce each other.
+#   Exp2 vs Exp3 answers: "does the full system beat the simpler baseline?"
+#
+# This is the config directly referenced in the proposal title:
+#   "Domain-Conditioned Degradation-Aware Blind Super-Resolution"
+#
+# Run:
+#   python scripts/run_experiment.py \
+#       --config configs/exp3_final.yaml \
+#       --noref_dir data/RealSRSet
+#
+# Expected training time: ~2–5 hrs on GPU (first run downloads VGG16 ~58 MB)
+#
+# If short on time — reduce to 50 epochs:
+#   training.num_epochs: 50
+#   curriculum stages: medium start_epoch: 17, hard start_epoch: 34
+
+experiment:
+  name: exp3_final
+  seed: 42
+
+model:
+  name: conditioned_srresnet
+  num_res_blocks: 8
+  num_features: 64
+  embed_dim: 64   # degradation embedding size — keep equal to num_features
+
+data:
+  hr_train_dir: data/DIV2K/HR_train
+  hr_valid_dir: data/DIV2K/HR_valid
+  lr_train_dir: data/DIV2K/LR_train   # unused
+  lr_valid_dir: data/DIV2K/LR_valid   # unused
+  use_online_degradation: true
+  domain: surveillance
+
+training:
+  num_epochs: 100
+  batch_size: 16
+  learning_rate: 0.0001
+  patch_size: 48
+  scale: 4
+  log_every: 10
+
+output:
+  base_dir: outputs/experiments
+  save_samples_every: 5
+  num_sample_images: 4
+
+loss:
+  pixel:
+    type: l1
+    weight: 1.0
+  perceptual:
+    enabled: true    # VGG16 relu2_2 — frozen, adds texture sharpness
+    weight: 0.05     # conservative; increase to 0.1 only if exp2 was stable
+    layer: relu2_2
+
+curriculum:
+  enabled: true
+
+  stages:
+    # Easy (ep 1–33): lighter than full surveillance — model learns basic SR first
+    - name: easy
+      start_epoch: 1
+      blur_sigma: [0.5, 1.5]
+      noise_sigma: [5, 20]
+      noise_probability: 0.70
+      jpeg_quality: [50, 80]
+      jpeg_probability: 0.80
+      second_stage_probability: 0.10
+
+    # Medium (ep 34–66): approaching the full surveillance range
+    - name: medium
+      start_epoch: 34
+      blur_sigma: [0.8, 2.5]
+      noise_sigma: [10, 32]
+      noise_probability: 0.85
+      jpeg_quality: [28, 60]
+      jpeg_probability: 0.90
+      second_stage_probability: 0.40
+
+    # Hard (ep 67–100): full surveillance preset — matches validation distribution
+    - name: hard
+      start_epoch: 67
+      blur_sigma: [1.0, 4.0]
+      noise_sigma: [10, 45]
+      noise_probability: 0.95
+      jpeg_quality: [20, 60]
+      jpeg_probability: 0.95
+      second_stage_probability: 0.75

@@ -1,0 +1,24 @@
+{
+  "experiment": "exp3_final",
+  "checkpoint": "best.pth",
+  "img_dir": "C:\\Users\\danyg\\OneDrive\\Desktop\\ML_Project\\ml_project\\data\\RealSRSet",
+  "num_images": 26,
+  "scale": 4,
+  "note": "lower NIQE and BRISQUE = better perceptual quality",
+  "bicubic": {
+    "brisque": {
+      "mean": 65.0192,
+      "std": 7.4921,
+      "min": 51.5041,
+      "max": 77.5305
+    }
+  },
+  "model": {
+    "brisque": {
+      "mean": 7.0146,
+      "std": 16.7971,
+      "min": -17.6678,
+      "max": 57.821
+    }
+  }
+}

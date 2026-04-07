@@ -1,0 +1,1702 @@
+[
+  {
+    "epoch": 1,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 2,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 3,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 4,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 5,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 6,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 7,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 8,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 9,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 10,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 11,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 12,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 13,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 14,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 15,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 16,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 17,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 18,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 19,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 20,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 21,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 22,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 23,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 24,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 25,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 26,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 27,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 28,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 29,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 30,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 31,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 32,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 33,
+    "stage": "easy",
+    "blur_sigma": [
+      0.5,
+      1.5
+    ],
+    "noise_sigma": [
+      5,
+      20
+    ],
+    "jpeg_quality": [
+      50,
+      80
+    ],
+    "second_stage_probability": 0.1
+  },
+  {
+    "epoch": 34,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 35,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 36,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 37,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 38,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 39,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 40,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 41,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 42,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 43,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 44,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 45,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 46,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 47,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 48,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 49,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 50,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 51,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 52,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 53,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 54,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 55,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 56,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 57,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 58,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 59,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 60,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 61,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 62,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 63,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 64,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 65,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 66,
+    "stage": "medium",
+    "blur_sigma": [
+      0.8,
+      2.5
+    ],
+    "noise_sigma": [
+      10,
+      32
+    ],
+    "jpeg_quality": [
+      28,
+      60
+    ],
+    "second_stage_probability": 0.4
+  },
+  {
+    "epoch": 67,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 68,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 69,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 70,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 71,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 72,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 73,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 74,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 75,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 76,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 77,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 78,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 79,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 80,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 81,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 82,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 83,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 84,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 85,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 86,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 87,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 88,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 89,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 90,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 91,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 92,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 93,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 94,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 95,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 96,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 97,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 98,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 99,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  },
+  {
+    "epoch": 100,
+    "stage": "hard",
+    "blur_sigma": [
+      1.0,
+      4.0
+    ],
+    "noise_sigma": [
+      10,
+      45
+    ],
+    "jpeg_quality": [
+      20,
+      60
+    ],
+    "second_stage_probability": 0.75
+  }
+]

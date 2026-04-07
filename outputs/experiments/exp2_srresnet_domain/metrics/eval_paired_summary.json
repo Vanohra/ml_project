@@ -1,0 +1,49 @@
+{
+  "experiment": "exp2_srresnet_domain",
+  "checkpoint": "best.pth",
+  "num_images": 40,
+  "scale": 4,
+  "regen_lr": false,
+  "cond_true": null,
+  "cond_fallback": null,
+  "bicubic": {
+    "psnr": {
+      "mean": 25.0539,
+      "std": 3.0845,
+      "min": 16.0006,
+      "max": 33.9064
+    },
+    "ssim": {
+      "mean": 0.6903,
+      "std": 0.103,
+      "min": 0.3681,
+      "max": 0.8686
+    },
+    "lpips": {
+      "mean": 0.5514,
+      "std": 0.1069,
+      "min": 0.2891,
+      "max": 0.8309
+    }
+  },
+  "model": {
+    "psnr": {
+      "mean": 22.0261,
+      "std": 2.4685,
+      "min": 14.224,
+      "max": 28.5142
+    },
+    "ssim": {
+      "mean": 0.4578,
+      "std": 0.1093,
+      "min": 0.2045,
+      "max": 0.7068
+    },
+    "lpips": {
+      "mean": 0.6565,
+      "std": 0.1381,
+      "min": 0.3633,
+      "max": 0.9382
+    }
+  }
+}

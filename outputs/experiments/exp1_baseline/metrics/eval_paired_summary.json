@@ -1,0 +1,49 @@
+{
+  "experiment": "exp1_baseline",
+  "checkpoint": "best.pth",
+  "num_images": 40,
+  "scale": 4,
+  "regen_lr": false,
+  "cond_true": null,
+  "cond_fallback": null,
+  "bicubic": {
+    "psnr": {
+      "mean": 25.0539,
+      "std": 3.0845,
+      "min": 16.0006,
+      "max": 33.9064
+    },
+    "ssim": {
+      "mean": 0.6903,
+      "std": 0.103,
+      "min": 0.3681,
+      "max": 0.8686
+    },
+    "lpips": {
+      "mean": 0.5514,
+      "std": 0.1069,
+      "min": 0.2891,
+      "max": 0.8309
+    }
+  },
+  "model": {
+    "psnr": {
+      "mean": 24.6177,
+      "std": 3.0161,
+      "min": 15.732,
+      "max": 33.3331
+    },
+    "ssim": {
+      "mean": 0.672,
+      "std": 0.1066,
+      "min": 0.3416,
+      "max": 0.8563
+    },
+    "lpips": {
+      "mean": 0.5301,
+      "std": 0.114,
+      "min": 0.2629,
+      "max": 0.7998
+    }
+  }
+}

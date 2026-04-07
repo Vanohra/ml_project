@@ -1,0 +1,4 @@
+experiment,model,domain,curriculum,loss_pixel,loss_perceptual,num_epochs,seed,best_psnr_train,psnr_bicubic,psnr_model,ssim_bicubic,ssim_model,lpips_bicubic,lpips_model,niqe_bicubic,niqe_model,brisque_bicubic,brisque_model,config_path
+exp3_final,conditioned_srresnet,surveillance,yes,l1,yes,100,42,21.0476,20.9743,20.9984,0.4174,0.4302,0.8376,0.7352,,,65.0192,7.0146,C:\Users\danyg\OneDrive\Desktop\ML_Project\ml_project\configs\exp3_final.yaml
+exp1_baseline,srcnn,generic,no,l1,no,50,42,24.6174,25.0539,24.6177,0.6903,0.672,0.5514,0.5301,,,65.0192,67.8184,C:\Users\danyg\OneDrive\Desktop\ML_Project\ml_project\configs\exp1_baseline.yaml
+exp2_srresnet_domain,srresnet,surveillance,no,l1,no,100,42,20.9831,25.0539,22.0261,0.6903,0.4578,0.5514,0.6565,,,65.0192,7.6207,C:\Users\danyg\OneDrive\Desktop\ML_Project\ml_project\configs\exp2_srresnet_domain.yaml

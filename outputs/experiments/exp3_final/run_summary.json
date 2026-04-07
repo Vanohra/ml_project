@@ -1,0 +1,31 @@
+{
+  "experiment": "exp3_final",
+  "model": "ConditionedSRResNet",
+  "conditioned": true,
+  "curriculum_enabled": true,
+  "curriculum_stages": [
+    "easy",
+    "medium",
+    "hard"
+  ],
+  "seed": 42,
+  "num_epochs": 100,
+  "batch_size": 16,
+  "learning_rate": 0.0001,
+  "patch_size": 48,
+  "scale": 4,
+  "use_online_degradation": true,
+  "domain": "surveillance",
+  "loss": {
+    "pixel_type": "l1",
+    "pixel_weight": 1.0,
+    "perceptual_enabled": true,
+    "perceptual_weight": 0.05,
+    "perceptual_layer": "relu2_2"
+  },
+  "best_psnr_db": 21.0476,
+  "final_train_loss": 0.116759,
+  "total_train_images": 100,
+  "total_val_images": 40,
+  "runtime_seconds": 23940.4
+}
