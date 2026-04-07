@@ -7,9 +7,9 @@
 
 ## Project Summary
 
-This project builds a super-resolution system specifically designed for real-world surveillance footage. Standard super-resolution methods assume clean, predictable image degradation — but real surveillance cameras produce images corrupted by blur, noise, and compression artifacts in ways that vary dramatically from camera to camera. Our system addresses this by explicitly telling the model how each image was degraded: instead of guessing, the model receives a description of the degradation and uses it to choose the best restoration strategy.
+This project builds a super-resolution system that adapts to how an image was degraded. Standard super-resolution methods assume clean, predictable degradation — but real-world images arrive in very different conditions depending on where they came from. A photo taken on a mobile phone, a frame from a dashcam, and footage from a security camera are all degraded differently — different levels of blur, noise, and compression. Our system handles this by explicitly telling the model what kind of degradation it is dealing with: instead of guessing, the model receives a description of the degradation and uses it to choose the best restoration strategy.
 
-We implemented three progressively more capable models and trained them as a controlled ablation study. The simplest model is a 3-layer CNN that beats bicubic interpolation. The second model is a deeper residual network trained specifically on surveillance-style degradation. The third and final model adds FiLM conditioning — a mechanism that lets the network adjust its behavior based on a 13-element vector describing the exact blur, noise, and compression applied to each image. We trained this final model with curriculum learning (easy degradations first, hard ones later) and a perceptual loss that encourages texture detail. All three models are evaluated with the same metrics so we can clearly see what each component contributes.
+We implemented three progressively more capable models and trained them as a controlled ablation study. The simplest model is a 3-layer CNN trained on generic random degradation. The second model is a deeper residual network trained on domain-specific degradation. The third and final model adds FiLM conditioning — a mechanism that lets the network adjust its behavior based on a 13-element vector describing the exact blur, noise, and compression applied to each image, along with which capture domain it came from. We trained this final model with curriculum learning (easy degradations first, hard ones later) and a perceptual loss that encourages texture detail. All three models are evaluated with the same metrics so we can clearly see what each component contributes.
 
 > **Note to presenter:** When presenting, replace all bracketed placeholders like `[X.XX dB]` with your actual numbers from `outputs/comparison_table.csv` and `outputs/experiments/*/metrics/eval_paired_summary.json`.
 
@@ -17,37 +17,40 @@ We implemented three progressively more capable models and trained them as a con
 
 ## Section 1 — Problem and Motivation
 
-### Slide 1.1 — The Problem with Surveillance Footage
+### Slide 1.1 — The Problem: Real Images Are Not Just Downscaled
 
 **What to say out loud:**
 
-"Let's start with the problem we're solving. Imagine you have a surveillance camera recording a parking lot. Someone breaks into a car. You pull the footage and you get... a blurry, noisy mess. The license plate is unreadable. The face is unidentifiable. The footage is useless for the one thing it was supposed to do.
+"Let's start with the problem we're solving. Super-resolution research usually assumes a simple setup: take a clean high-resolution image, shrink it, and try to recover the original. But that's not how real low-resolution images work.
 
-This is not a made-up scenario. Surveillance cameras are almost universally low quality — not because the manufacturers are cheap, but because of real engineering constraints. These cameras record 24 hours a day, seven days a week. They stream over networks with limited bandwidth. They store footage for weeks on servers with limited space. Every one of those constraints pushes toward lower resolution, heavier compression, and worse image quality.
+Think about where low-resolution images actually come from. A photo sent over WhatsApp gets recompressed. A dashcam records through a vibrating windshield. A security camera streams over limited bandwidth and gets stored with heavy compression. Each of those scenarios produces degradation in a completely different way — different blur, different noise, different compression artifacts, sometimes stacked on top of each other in multiple passes.
 
-Our project asks: can machine learning restore that footage after the fact?"
+Standard super-resolution models are not designed for this. They're trained on clean downscaled images, so when you apply them to a real degraded photo, you often get worse results than just doing bicubic interpolation. The model is solving the wrong problem.
+
+Our project asks: what if the model knew what kind of degradation it was dealing with?"
 
 **Slide notes:**
-- Show a side-by-side: a blurry surveillance crop vs. a clean version
-- The key emotional hook is: useful footage vs. useless footage
-- Do not get technical yet — this slide is about why anyone should care
+- The key contrast: "bicubic downscale" assumption vs. real compound degradation
+- Three concrete examples: mobile phone recompression, dashcam motion blur, security camera bandwidth compression
+- Do not say "we're building a surveillance system" — the point is domain generality
+- The punch line: "the model is solving the wrong problem"
 
 ---
 
-### Slide 1.2 — Why Existing Super-Resolution Doesn't Work Well
+### Slide 1.2 — The Mismatch Between Training and Reality
 
 **What to say out loud:**
 
-"Super-resolution — making a low-resolution image look higher-resolution — is a well-studied problem. But most super-resolution methods are built and tested on clean images that were simply downscaled. You take a sharp photo, shrink it, then try to recover the original.
+"Super-resolution is a well-studied problem. But almost all of the classic training setups make one big simplifying assumption: they take a clean image and apply a single, clean bicubic downscale to create the low-resolution version. That's neat for benchmarking, but it doesn't reflect reality.
 
-Real surveillance footage does not work like that. It's not just smaller — it's blurry from a cheap wide-angle lens. It's noisy from a low-light sensor. It's compressed twice: once when it was recorded, and again when it was sent to the server or the cloud. The degradations stack on top of each other in ways that simple models do not expect.
+Real images go through compound degradation. A mobile photo gets sharpened by the phone's ISP, uploaded to a social app that recompresses it, then downloaded by someone else — that's two or three generations of JPEG artifacts before it even reaches you. A dashcam image is blurred by windshield glare and motion, then encoded in H.264 with heavy compression to save storage. Each domain has its own degradation fingerprint.
 
-If you train a super-resolution model on clean, bicubic-downscaled images and then run it on real surveillance footage, you get artifacts. You get worse results than you'd get from just doing bicubic interpolation yourself. The model is solving the wrong problem."
+If you train a model assuming clean bicubic downscaling and then run it on real images, the degradation types it encounters at test time are completely different from what it trained on. The result is artifacts, hallucinated textures, or outputs that look worse than just upscaling with bicubic. The model is trying to solve a problem it was never shown."
 
 **Slide notes:**
-- This motivates the need for blind SR — handling unknown, compound degradations
-- Bicubic interpolation is the baseline everyone compares against
-- "The model is solving the wrong problem" is the key phrase — it sets up our solution
+- The key word is "mismatch" — training distribution vs. test distribution
+- This is the core motivation for the whole project, not a surveillance-specific argument
+- Bicubic is the reference floor — everything is compared to it
 
 ---
 
@@ -73,7 +76,7 @@ We call this degradation-aware conditioning. The 'blind' part in our title refer
 
 "Here's how our full pipeline works, from a clean training image to a super-resolved output.
 
-We start with a high-resolution training image from the DIV2K dataset — a standard benchmark collection of 800 high-quality photos covering diverse content. We apply a two-stage degradation process that simulates what a surveillance camera actually does to an image. We then scale the result down by a factor of four. That's our low-resolution input.
+We start with a high-resolution training image from the DIV2K dataset — a standard benchmark collection of 800 high-quality photos covering diverse content. We apply a two-stage degradation process that simulates the kind of real-world degradation a domain like mobile, dashcam, or surveillance would produce. We then scale the result down by a factor of four. That's our low-resolution input.
 
 At the same time, we record exactly what degradations were applied — the blur strength, the noise level, the compression quality — and we package that into a 13-element vector. That vector goes into the model alongside the low-resolution image.
 
@@ -92,18 +95,18 @@ The model processes both, produces a four-times-larger output image, and we comp
 
 "Let's zoom into the degradation step, because this is more sophisticated than it might sound.
 
-We designed a two-stage degradation pipeline that mimics what actually happens to surveillance footage. In stage one, we apply blur — simulating a cheap lens or camera motion — followed by downsampling to reduce the resolution, then Gaussian noise to simulate sensor noise, and finally JPEG compression with a randomly chosen quality level. That's what the camera does.
+We designed a two-stage degradation pipeline. In stage one, we apply blur — simulating a cheap lens or motion — followed by downsampling to reduce the resolution, then Gaussian noise to simulate sensor noise, and finally JPEG compression with a randomly chosen quality level. That's one pass of degradation.
 
-In stage two — which we apply 75% of the time for surveillance footage — we apply a second round of noise and JPEG compression at the low-resolution scale. This simulates what happens when the footage is streamed to a server, stored as a compressed video, then re-encoded again when someone downloads the clip. DVR recording, then cloud re-encoding. Two generations of compression artifacts on top of each other.
+In stage two — applied some percentage of the time depending on the domain — we apply a second round of noise and JPEG compression at the low-resolution scale. This simulates what happens in the real world when an already-compressed image gets re-encoded: a photo uploaded to a social platform, a video clip pulled from cloud storage, a file passed through a messaging app. Two generations of compression artifacts on top of each other.
 
-We define three domain presets that set the ranges for these parameters. The surveillance preset uses heavy blur — one to four sigma — high noise — ten to forty-five sigma — and aggressive JPEG compression — quality twenty to sixty. Mobile and dashcam presets use milder settings, because phone cameras and dashcams are generally higher quality than fixed surveillance hardware."
+Each domain preset defines the ranges for these parameters differently. The mobile preset is mild — light blur, low noise, high JPEG quality, because phone cameras are generally good hardware. The dashcam preset is moderate — some motion blur and mid-level compression. The surveillance preset is the harshest — heavy blur, high noise, aggressive JPEG — and applies the second stage 75% of the time. Our experiments focus on the surveillance preset because it is the most challenging case, but all three domains are implemented."
 
 **Slide notes:**
-- Blur sigma: higher = blurrier. Bicubic kernel sigma 1.0 is mild, 4.0 is very blurry
+- Blur sigma: higher = blurrier. 1.0 is mild, 4.0 is very blurry
 - Noise sigma: higher = grainier. 45 is quite noisy
-- JPEG quality: lower = worse. Quality 20 is very heavily compressed, lots of blockiness
-- Stage 2 means double compression — a real surveillance pain point
-- The surveillance preset is what all three experiments use (except exp1 which uses random)
+- JPEG quality: lower = worse. Quality 20 is heavily compressed, lots of blockiness
+- Stage 2 = double compression — common in real image pipelines across all three domains
+- The surveillance preset is used in exp2 and exp3 because it is the hardest and most interesting case, not because the project is surveillance-only
 
 **Formula — JPEG Quality:**
 JPEG quality is not a formula — it is a parameter from 0 to 100 that controls how aggressively the encoder discards high-frequency information. Quality 95 looks almost identical to the original. Quality 20 creates visible blocky artifacts. We randomize it to train the model to handle any level of compression.
@@ -118,7 +121,7 @@ JPEG quality is not a formula — it is a parameter from 0 to 100 that controls 
 
 The vector contains five values from stage one: how strong the blur was, which downsampling method was used, how strong the noise was, the JPEG quality, and whether JPEG was applied. Then there is a flag for whether a second stage happened. Then four more values for stage two. And finally, three values at the end that form a one-hot encoding of the domain — mobile, surveillance, or dashcam. Only one of those three is set to one; the others are zero.
 
-Everything is normalized to the range zero to one so the model can learn stable weights. Blur sigma of four — the maximum for surveillance — maps to one. Blur sigma of zero maps to zero. The model learns that high values in certain positions mean 'this image was heavily processed, apply aggressive restoration.'"
+Everything is normalized to the range zero to one so the model can learn stable weights. Blur sigma of four — the maximum in our harshest preset — maps to one. Blur sigma of zero maps to zero. The model learns that high values in certain positions mean 'this image was heavily processed, apply aggressive restoration.'"
 
 **Slide notes:**
 - One-hot encoding: exactly one of [mobile, surveillance, dashcam] is 1, the rest are 0
@@ -164,7 +167,7 @@ One implementation detail that matters: we initialize gamma to one and beta to z
 
 Model one is SimpleSRCNN. Three convolutional layers, about fifty-seven thousand parameters. Trained on generic random degradation — no domain specialization. This is our baseline. It answers the question: does any neural SR model beat bicubic?
 
-Model two is SRResNet. Eight residual blocks, about nine hundred fifty-seven thousand parameters — seventeen times more than model one. Trained specifically on surveillance-style degradation. This answers: does a deeper model, trained on the right domain, do better?
+Model two is SRResNet. Eight residual blocks, about nine hundred fifty-seven thousand parameters — seventeen times more than model one. Trained on domain-specific degradation — in our case, the surveillance preset, which is the most challenging of our three domains. This answers: does a deeper model, trained on a specific domain's degradation profile, do better?
 
 Model three is ConditionedSRResNet. The SRResNet backbone plus FiLM conditioning layers — about one million thirty thousand parameters. Trained with curriculum learning and perceptual loss. This is our full proposal and answers: does conditioning plus curriculum plus perceptual loss produce the best results?
 
@@ -283,7 +286,7 @@ We use VGG perceptual loss instead of adversarial (GAN) loss. This is a delibera
 This is experiment one, SimpleSRCNN trained for fifty epochs on generic degradation. You can see it starts below the bicubic baseline and improves, eventually beating bicubic by a small margin.
 
 [Point to the curve for exp2.]
-Experiment two, SRResNet trained for one hundred epochs on surveillance-specific degradation. It starts improving faster and reaches a higher plateau. This tells us two things: a deeper model helps, and training on the right domain matters.
+Experiment two, SRResNet trained for one hundred epochs on domain-specific degradation — we used the surveillance preset here because it is the harshest of our three domains and gives the most room to show improvement. It starts improving faster and reaches a higher plateau. This tells us two things: a deeper model helps, and training on a realistic domain-specific degradation profile matters.
 
 [Point to the curve for exp3.]
 Experiment three, our full system, reaches the highest PSNR of the three. Notice the training curve — it shows slower improvement in the early epochs when curriculum is on easy mode, then an acceleration in the middle, then another plateau as it handles the hardest degradations.
@@ -422,7 +425,7 @@ We run these on RealSRSet — real degraded images with no HR counterpart. On th
 
 [Show side-by-side panels: LR | Bicubic | Our SR | HR Ground Truth]
 
-On the left is the low-resolution input — the image after four-times downscaling and surveillance-style degradation. Next is bicubic interpolation — the traditional approach, no neural network. In the middle is our model's output. On the right is the original high-resolution image.
+On the left is the low-resolution input — the image after four-times downscaling with our domain degradation applied. Next is bicubic interpolation — the traditional approach, no neural network. In the middle is our model's output. On the right is the original high-resolution image.
 
 Look at [point to a specific detail — edges, text, texture]. Bicubic blurs that detail. Our model recovers [describe what it recovers]. The PSNR improvement of [X dB] translates to this visible difference.
 
@@ -444,7 +447,7 @@ We also have a case where our model doesn't perfectly recover the detail — spe
 
 "Our biggest open problem is the gap between training and real deployment. During training, we tell the model exactly how each image was degraded. In the real world, you have the degraded image and nothing else.
 
-The next step is to build a degradation estimator — a small network that takes a low-resolution image and predicts the conditioning vector. If we had that, the full pipeline would be: input a real surveillance frame, estimate its degradation parameters, pass both the frame and the estimated parameters to the conditioned model, and get a high-quality output. That closes the loop.
+The next step is to build a degradation estimator — a small network that takes a low-resolution image and predicts the conditioning vector. If we had that, the full pipeline would be: input a real degraded image, estimate its degradation parameters, pass both the image and the estimated parameters to the conditioned model, and get a high-quality output. That closes the loop.
 
 This is not a trivial problem. Estimating noise level or JPEG quality from a degraded image requires the estimator network to see many examples of each degradation level. But it's a natural extension of exactly what we have built — the architecture already supports arbitrary conditioning vectors."
 
@@ -461,7 +464,7 @@ This is not a trivial problem. Estimating noise level or JPEG quality from a deg
 
 "Beyond blind estimation, there are several directions we'd pursue with more time.
 
-Temporal consistency for video: we currently treat each surveillance frame as an independent image. A real system should maintain coherence across consecutive frames — so a face that's in the same position across ten frames looks the same in our restored output, not ten slightly different versions. This requires a video SR architecture, not single-image.
+Temporal consistency for video: we currently treat each video frame as an independent image. A real system should maintain coherence across consecutive frames — so a face that's in the same position across ten frames looks the same in our restored output, not ten slightly different versions. This requires a video SR architecture, not single-image.
 
 Full training data: we used one hundred of the eight hundred available DIV2K training images. Scaling to the full dataset with the same training setup should improve absolute PSNR by one to two decibels based on established scaling trends.
 
@@ -471,7 +474,7 @@ Multi-scale evaluation: we only tested four-times upscaling. The same architectu
 
 **Slide notes:**
 - These are honest future directions, not excuses
-- The temporal consistency point is important for a surveillance-focused project
+- The temporal consistency point applies to any domain that produces video (dashcam, security cameras, etc.)
 - GAN is a future enhancement, not a gap — justify the VGG choice again if asked
 
 ---
@@ -482,7 +485,7 @@ Multi-scale evaluation: we only tested four-times upscaling. The same architectu
 
 "A few things we learned from building this system that go beyond the metrics.
 
-Degradation matters more than architecture. Going from a three-layer CNN to an eight-layer residual network helped — but training that network on the wrong degradation distribution would hurt. The surveillance domain preset was as important as the model capacity increase.
+Degradation matters more than architecture. Going from a three-layer CNN to an eight-layer residual network helped — but training that network on the wrong degradation distribution would hurt. The domain-specific preset was as important as the model capacity increase.
 
 Curriculum training helps stability. Training on hard degradations from epoch one caused the model to struggle. Introducing difficulty gradually — even with the same final result — produced smoother training curves and slightly better final PSNR.
 
@@ -595,9 +598,11 @@ These should be stated clearly in the presentation — confident disclosure buil
 
 ---
 
-### "Why DIV2K? Why not use actual surveillance footage for training?"
+### "Why DIV2K? Why not use real degraded images for training?"
 
-"DIV2K is a standard benchmark that provides clean high-resolution images we can degrade in a controlled way. If we trained on actual surveillance footage, we would not have clean ground truth to compare against — we can't know what the original high-resolution scene looked like. By starting from clean DIV2K images and applying our surveillance degradation preset, we simulate surveillance conditions while keeping the ground truth for supervised training. VIRAT footage can be used for evaluation — testing how well the model trained on DIV2K generalizes to real surveillance frames."
+"Super-resolution training requires pairs: a low-resolution input and the corresponding high-resolution ground truth. With real degraded images — a blurry dashcam clip, a compressed social media photo — you have the low-resolution version but not the original clean ground truth. You can't supervise the model without knowing what it's supposed to output.
+
+DIV2K provides clean high-resolution images that we can degrade in a fully controlled way. We apply our degradation pipeline synthetically, so we always have the exact ground truth. The domain presets are designed to match the statistics of real capture domains — mobile, dashcam, surveillance — so the model learns to handle realistic degradation even though it trains on synthetic pairs."
 
 ---
 
@@ -619,9 +624,9 @@ These should be stated clearly in the presentation — confident disclosure buil
 
 ---
 
-### "Would this work on real surveillance cameras without modification?"
+### "Would this work on real-world images from these domains without modification?"
 
-"Not immediately, because of the blind estimation gap we described. To use this on a real camera, you'd need either: one, a way to estimate the degradation parameters from the input image — which is our primary future work item — or two, calibration data for a specific camera that lets you set the conditioning vector to known fixed values. Option two is actually practical in a deployed system: if you know the camera model, you can profile its blur and noise characteristics once and hardcode that information into the conditioning vector for all footage from that camera."
+"Not immediately, because of the blind estimation gap we described. To use this on a real image with unknown degradation, you'd need either: one, a way to estimate the degradation parameters from the input image — which is our primary future work item — or two, calibration data for a known capture device that lets you set the conditioning vector to fixed values. Option two is actually practical in a deployed system: if you know the camera or phone model, you can profile its blur and noise characteristics once and hardcode that information into the conditioning vector. For our experiments, we always have the conditioning vector because we applied the degradation ourselves during training."
 
 ---
 
