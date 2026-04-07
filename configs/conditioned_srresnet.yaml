@@ -58,3 +58,40 @@ output:
   base_dir: outputs/experiments
   save_samples_every: 5
   num_sample_images: 4
+
+loss:
+  pixel:
+    type: l1
+    weight: 1.0
+  perceptual:
+    enabled: false  # set to true to add VGG16 feature loss (weight 0.1 is safe)
+    weight: 0.1
+    layer: relu2_2
+
+curriculum:
+  enabled: false
+  stages:
+    - name: easy
+      start_epoch: 1
+      blur_sigma: [0.2, 1.0]
+      noise_sigma: [0, 8]
+      noise_probability: 0.50
+      jpeg_quality: [80, 95]
+      jpeg_probability: 0.70
+      second_stage_probability: 0.0
+    - name: medium
+      start_epoch: 34
+      blur_sigma: [0.3, 2.5]
+      noise_sigma: [5, 25]
+      noise_probability: 0.75
+      jpeg_quality: [50, 85]
+      jpeg_probability: 0.85
+      second_stage_probability: 0.30
+    - name: hard
+      start_epoch: 67
+      blur_sigma: [0.5, 4.0]
+      noise_sigma: [10, 45]
+      noise_probability: 0.90
+      jpeg_quality: [20, 70]
+      jpeg_probability: 0.95
+      second_stage_probability: 0.70

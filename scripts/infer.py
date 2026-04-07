@@ -48,9 +48,19 @@ Output folder layout
     gallery.png          Contact sheet  LR | Bicubic | SR  (with --save_gallery)
     run_info.json        Provenance record
 
-Notes
-  - ConditionedSRResNet is evaluated with a zero conditioning vector
-    (same as evaluate_noref.py).
+Notes on conditioning for ConditionedSRResNet
+  Real-world LR images from RealSRSet have no associated degradation metadata.
+  There is no ground truth for blur/noise/JPEG parameters, so a zero conditioning
+  vector is used (all conditioning values = 0.0).  This is the correct fallback
+  for unknown degradations: the FiLM layers were initialised to identity, so the
+  model still performs meaningful SR — it just cannot adapt to specific degradation
+  characteristics. This is a known limitation for unseen real-world images.
+
+  For synthetic evaluation WITH true conditioning use:
+    evaluate_paired.py --regen_lr   (re-degrades DIV2K HR images, captures params)
+    evaluate_virat.py               (reads surveillance params from manifest.json)
+
+Other notes
   - Images are processed one at a time (no batching) so arbitrarily large
     images do not cause out-of-memory errors.
   - SR images are saved as PNG regardless of input format to avoid quality loss.
@@ -143,6 +153,8 @@ def run_sr(img_path: Path, scale: int, model, device: torch.device,
         model_input = lr
 
     if has_cond:
+        # Zero conditioning vector — real-world images have no degradation metadata.
+        # This is a known limitation for unseen LR images (see module docstring).
         from cond_utils import COND_DIM
         cond = torch.zeros(1, COND_DIM, device=device)
         sr = model(model_input, cond).clamp(0, 1)
@@ -292,7 +304,9 @@ def main():
             has_cond   = getattr(model, "expects_cond_vector", False)
             scale      = cfg.get("training", {}).get("scale", args.scale)
             if has_cond:
-                print("  [note] ConditionedSRResNet: zero conditioning vector.")
+                print("  [cond] ConditionedSRResNet: zero conditioning vector (fallback).")
+                print("         Real-world images have no degradation metadata — this is expected.")
+                print("         For true conditioning use evaluate_paired.py --regen_lr or evaluate_virat.py.")
         except FileNotFoundError as e:
             print(f"[warn] Could not load model:\n  {e}\n  Falling back to bicubic only.")
 

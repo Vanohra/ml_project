@@ -17,8 +17,20 @@ Metrics computed
 Both bicubic baseline and trained-model outputs are evaluated in one pass
 so the table is directly comparable.
 
+Conditioning for ConditionedSRResNet
+  --regen_lr  (recommended for conditioned models)
+    Re-degrades each HR image using the domain from the training config.
+    Captures the exact degradation parameters → passes the actual conditioning
+    vector to the model.  This is the most faithful evaluation for the
+    ConditionedSRResNet proposal.  --lr_dir is not required in this mode.
+
+  Without --regen_lr (default)
+    Loads LR images from --lr_dir.  For conditioned models a zero conditioning
+    vector is used (fallback).  Results are still valid but the model cannot
+    use its conditioning head.
+
 Outputs (saved to outputs/experiments/<name>/metrics/)
-  eval_paired.csv         per-image metrics for every method
+  eval_paired.csv           per-image metrics for every method
   eval_paired_summary.json  mean ± std for every method
 
 Usage examples
@@ -34,6 +46,12 @@ Usage examples
       --experiment baseline_srcnn \\
       --hr_dir data/DIV2K/HR_valid \\
       --lr_dir data/DIV2K/LR_valid
+
+  # ConditionedSRResNet — true conditioning via re-degradation from HR:
+  python scripts/evaluate_paired.py \\
+      --experiment exp3_final \\
+      --hr_dir data/DIV2K/HR_valid \\
+      --regen_lr
 
   # Explicit config and a specific checkpoint:
   python scripts/evaluate_paired.py \\
@@ -114,6 +132,8 @@ def load_model(exp_dir: Path, config_path, checkpoint_name: str,
 
     config_path  : explicit path to YAML, or None to auto-discover from exp_dir.
     checkpoint_name : "best" or "last" (no .pth extension needed).
+
+    Returns (model, cfg).  The caller reads cfg to get scale, domain, etc.
     """
     from models import build_model
 
@@ -180,17 +200,41 @@ def find_pairs(hr_dir: Path, lr_dir: Path):
 # ── Per-image evaluation ──────────────────────────────────────────────────────
 
 @torch.no_grad()
-def eval_image(lr_path: Path, hr_path: Path, scale: int,
+def eval_image(lr_path, hr_path: Path, scale: int,
                model, lpips_fn, device: torch.device,
-               has_cond: bool) -> dict:
+               has_cond: bool, domain: str | None = None,
+               regen_lr: bool = False) -> tuple[dict, bool]:
     """
-    Evaluates one LR/HR pair.
+    Evaluates one HR image (and optionally its pre-saved LR counterpart).
 
-    Returns a dict of {metric_method: value} pairs, e.g.
-    {"psnr_bicubic": 29.4, "ssim_bicubic": 0.85, "psnr_model": 30.8, ...}
+    Two modes controlled by regen_lr:
+
+      regen_lr=False (default)
+        Loads LR from lr_path.  For conditioned models a zero vector is used
+        (fallback conditioning) — the model still runs, but cannot use its
+        conditioning head.
+
+      regen_lr=True
+        Ignores lr_path.  Re-degrades hr_path using `domain` (from the training
+        config) and captures the exact degradation parameters. Passes the real
+        conditioning vector to the model — true conditioning, faithful to the
+        proposal.  `domain` must be set when regen_lr=True.
+
+    Returns (metrics_dict, used_true_cond).
+    metrics_dict keys: psnr_bicubic, ssim_bicubic, lpips_bicubic,
+                       psnr_model, ssim_model, lpips_model (last three only
+                       when model is not None).
     """
     hr_img = Image.open(hr_path).convert("RGB")
-    lr_img = Image.open(lr_path).convert("RGB")
+
+    # ── LR source ─────────────────────────────────────────────────────────────
+    metadata = None
+    if regen_lr and domain is not None:
+        # Re-degrade from HR so we have the exact parameters for conditioning.
+        from domain_degradation import degrade_domain
+        lr_img, metadata = degrade_domain(hr_img, scale=scale, domain=domain)
+    else:
+        lr_img = Image.open(lr_path).convert("RGB")
 
     hr = to_tensor(hr_img).unsqueeze(0).to(device)   # (1, 3, H, W)
     lr = to_tensor(lr_img).unsqueeze(0).to(device)   # (1, 3, h, w)
@@ -210,19 +254,26 @@ def eval_image(lr_path: Path, hr_path: Path, scale: int,
         row["lpips_bicubic"] = compute_lpips(bicubic, hr, lpips_fn)
 
     # ── Model metrics ─────────────────────────────────────────────────────────
+    used_true_cond = False
     if model is not None:
         if model.expects_upsampled_input:
-            model_input = bicubic                    # SRCNN: needs HR-size input
+            model_input = bicubic              # SRCNN: needs HR-size input
         else:
-            model_input = lr                         # SRResNet: raw LR input
+            model_input = lr                   # SRResNet / ConditionedSRResNet
 
         if has_cond:
-            # ConditionedSRResNet: zero vector = "no degradation info available"
-            from cond_utils import COND_DIM
-            cond = torch.zeros(1, COND_DIM, device=device)
-            sr = model(model_input, cond)
+            if metadata is not None:
+                # True conditioning: actual degradation parameters captured above.
+                from cond_utils import build_cond_vector
+                cond = build_cond_vector(metadata).unsqueeze(0).to(device)
+                used_true_cond = True
+            else:
+                # Fallback: zero vector — conditioning head receives no information.
+                from cond_utils import COND_DIM
+                cond = torch.zeros(1, COND_DIM, device=device)
+            sr = model(model_input, cond).clamp(0, 1)
         else:
-            sr = model(model_input)
+            sr = model(model_input).clamp(0, 1)
 
         row["psnr_model"]  = compute_psnr(sr, hr)
         if HAS_SSIM:
@@ -230,7 +281,7 @@ def eval_image(lr_path: Path, hr_path: Path, scale: int,
         if HAS_LPIPS and lpips_fn is not None:
             row["lpips_model"] = compute_lpips(sr, hr, lpips_fn)
 
-    return row
+    return row, used_true_cond
 
 
 # ── Aggregate statistics ──────────────────────────────────────────────────────
@@ -257,8 +308,15 @@ def main():
                         help="Experiment name (folder under outputs/experiments/)")
     parser.add_argument("--hr_dir",     required=True,
                         help="Directory of HR ground-truth images")
-    parser.add_argument("--lr_dir",     required=True,
-                        help="Directory of LR input images (matched by filename)")
+    parser.add_argument("--lr_dir",     default=None,
+                        help="Directory of LR input images (matched by filename). "
+                             "Not required when --regen_lr is set.")
+    parser.add_argument("--regen_lr",   action="store_true",
+                        help="Re-degrade HR images using the training domain instead of "
+                             "loading pre-saved LR files. Enables true conditioning for "
+                             "ConditionedSRResNet (actual degradation params are captured "
+                             "and passed as the conditioning vector). Recommended for "
+                             "conditioned models. --lr_dir is ignored when this flag is set.")
     parser.add_argument("--config",     default=None,
                         help="YAML config for model instantiation "
                              "(auto-discovered from experiment dir if omitted)")
@@ -273,14 +331,24 @@ def main():
 
     project_dir = Path(__file__).resolve().parent.parent
     hr_dir      = Path(args.hr_dir)
-    lr_dir      = Path(args.lr_dir)
+    lr_dir      = Path(args.lr_dir) if args.lr_dir else None
     exp_dir     = project_dir / "outputs" / "experiments" / args.experiment
     metrics_dir = exp_dir / "metrics"
     metrics_dir.mkdir(parents=True, exist_ok=True)
 
+    # ── Validate LR source ────────────────────────────────────────────────────
+    if not args.regen_lr and lr_dir is None and not args.bicubic_only:
+        print("[error] Provide either --lr_dir (pre-saved LR images) or --regen_lr "
+              "(re-degrade from HR, enables true conditioning).")
+        return
+    if not args.regen_lr and lr_dir is None and args.bicubic_only:
+        # bicubic_only can re-degrade or use HR directly — require lr_dir for bicubic
+        print("[error] --bicubic_only requires --lr_dir (pre-saved LR images).")
+        return
+
     if not hr_dir.exists():
         print(f"[error] HR directory not found: {hr_dir}");  return
-    if not lr_dir.exists():
+    if lr_dir is not None and not lr_dir.exists():
         print(f"[error] LR directory not found: {lr_dir}");  return
 
     device = (torch.device("cuda") if torch.cuda.is_available() else
@@ -290,14 +358,21 @@ def main():
     print(f"Device : {device}")
 
     # ── Model ─────────────────────────────────────────────────────────────────
-    model, has_cond, scale = None, False, args.scale
+    model, has_cond, scale, domain = None, False, args.scale, None
     if not args.bicubic_only:
         try:
             model, cfg = load_model(exp_dir, args.config, args.checkpoint, device)
             has_cond   = getattr(model, "expects_cond_vector", False)
             scale      = cfg.get("training", {}).get("scale", args.scale)
+            domain     = cfg.get("data", {}).get("domain")   # e.g. "surveillance"
             if has_cond:
-                print("  [note] ConditionedSRResNet: using zero conditioning vector for eval.")
+                if args.regen_lr and domain:
+                    print(f"  [cond] ConditionedSRResNet: TRUE conditioning via --regen_lr.")
+                    print(f"         HR images will be re-degraded using domain='{domain}'.")
+                    print(f"         Actual degradation params → real conditioning vector per image.")
+                else:
+                    print(f"  [cond] ConditionedSRResNet: FALLBACK conditioning (zero vector).")
+                    print(f"         Pass --regen_lr to enable true conditioning.")
         except FileNotFoundError as e:
             print(f"[warn] Could not load model:\n  {e}\n  Falling back to bicubic only.")
 
@@ -307,23 +382,68 @@ def main():
         print("Loading LPIPS network (AlexNet)...")
         lpips_fn = _lpips_lib.LPIPS(net="alex", verbose=False).to(device)
 
-    # ── Image pairs ───────────────────────────────────────────────────────────
-    pairs = find_pairs(hr_dir, lr_dir)
-    if not pairs:
-        print("[error] No matching LR/HR pairs found.");  return
-    print(f"\nEvaluating {len(pairs)} image pairs...")
+    # ── Image list / pairs ────────────────────────────────────────────────────
+    # regen_lr mode: iterate over HR files only (no pre-saved LR needed).
+    # standard mode: use find_pairs() to match HR and LR files by filename.
+    n_true_cond = 0
+    n_fallback  = 0
 
-    # ── Per-image loop ────────────────────────────────────────────────────────
-    rows = []
-    for i, (lr_p, hr_p) in enumerate(pairs, 1):
-        row = eval_image(lr_p, hr_p, scale, model, lpips_fn, device, has_cond)
-        row = {"filename": hr_p.name, **row}
-        rows.append(row)
+    if args.regen_lr:
+        hr_files = sorted(p for p in hr_dir.iterdir()
+                          if p.suffix.lower() in SUPPORTED_EXTS)
+        if not hr_files:
+            print(f"[error] No images found in {hr_dir}");  return
+        print(f"\nEvaluating {len(hr_files)} HR images  "
+              f"[regen_lr — re-degrading with domain='{domain}']...")
 
-        psnr_b = f"{row.get('psnr_bicubic', 0):.2f}"
-        psnr_m = f"{row.get('psnr_model',   0):.2f}" if "psnr_model" in row else "n/a"
-        print(f"  [{i:3d}/{len(pairs)}] {hr_p.name:<20s}  "
-              f"bicubic {psnr_b} dB  model {psnr_m} dB")
+        rows = []
+        for i, hr_p in enumerate(hr_files, 1):
+            row, used_true = eval_image(
+                None, hr_p, scale, model, lpips_fn, device, has_cond,
+                domain=domain, regen_lr=True,
+            )
+            if has_cond and model is not None:
+                n_true_cond += int(used_true)
+                n_fallback  += int(not used_true)
+            row = {"filename": hr_p.name, **row}
+            rows.append(row)
+
+            psnr_b = f"{row.get('psnr_bicubic', 0):.2f}"
+            psnr_m = f"{row.get('psnr_model',   0):.2f}" if "psnr_model" in row else "n/a"
+            print(f"  [{i:3d}/{len(hr_files)}] {hr_p.name:<20s}  "
+                  f"bicubic {psnr_b} dB  model {psnr_m} dB")
+    else:
+        pairs = find_pairs(hr_dir, lr_dir)
+        if not pairs:
+            print("[error] No matching LR/HR pairs found.");  return
+        print(f"\nEvaluating {len(pairs)} image pairs...")
+
+        rows = []
+        for i, (lr_p, hr_p) in enumerate(pairs, 1):
+            row, used_true = eval_image(
+                lr_p, hr_p, scale, model, lpips_fn, device, has_cond,
+                domain=domain, regen_lr=False,
+            )
+            if has_cond and model is not None:
+                n_true_cond += int(used_true)
+                n_fallback  += int(not used_true)
+            row = {"filename": hr_p.name, **row}
+            rows.append(row)
+
+            psnr_b = f"{row.get('psnr_bicubic', 0):.2f}"
+            psnr_m = f"{row.get('psnr_model',   0):.2f}" if "psnr_model" in row else "n/a"
+            print(f"  [{i:3d}/{len(pairs)}] {hr_p.name:<20s}  "
+                  f"bicubic {psnr_b} dB  model {psnr_m} dB")
+
+    # ── Conditioning mode summary ─────────────────────────────────────────────
+    if has_cond and model is not None:
+        total_cond = n_true_cond + n_fallback
+        if n_true_cond == total_cond:
+            print(f"\n[cond] All {n_true_cond}/{total_cond} images used TRUE conditioning "
+                  f"(actual degradation params from --regen_lr re-degradation).")
+        else:
+            print(f"\n[cond] {n_fallback}/{total_cond} images used FALLBACK conditioning "
+                  f"(zero vector). Run with --regen_lr for true conditioning.")
 
     # ── Save CSV ──────────────────────────────────────────────────────────────
     csv_path = metrics_dir / "eval_paired.csv"
@@ -341,10 +461,13 @@ def main():
     methods = ["bicubic"] + (["model"] if model is not None else [])
 
     summary = {
-        "experiment":  args.experiment,
-        "checkpoint":  f"{args.checkpoint}.pth" if not args.bicubic_only else None,
-        "num_images":  len(rows),
-        "scale":       scale,
+        "experiment":    args.experiment,
+        "checkpoint":    f"{args.checkpoint}.pth" if not args.bicubic_only else None,
+        "num_images":    len(rows),
+        "scale":         scale,
+        "regen_lr":      args.regen_lr,
+        "cond_true":     n_true_cond if has_cond and model else None,
+        "cond_fallback": n_fallback  if has_cond and model else None,
     }
     for method in methods:
         summary[method] = {}

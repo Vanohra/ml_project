@@ -1,0 +1,95 @@
+# configs/exp2_srresnet_domain.yaml
+# ==================================
+# EXPERIMENT 2 of 3 — Stronger backbone + domain-conditioned training
+#
+# Question answered: Does a deeper model trained specifically on surveillance-style
+#                   degradation outperform the generic baseline?
+#
+# What changes vs Exp 1:
+#   • Model:  SRResNet (~957K params) instead of SimpleSRCNN (~57K params)
+#             Processes at LR resolution with PixelShuffle upsampling.
+#   • Domain: surveillance preset instead of generic random degradation.
+#             Heavy blur (1–4σ), high noise (10–45σ), aggressive JPEG (20–60),
+#             high-probability second-stage re-encoding.  This is what VIRAT
+#             footage actually looks like.
+#   • Epochs: 100 (SRResNet benefits from more training time)
+#
+# What stays the same vs Exp 1:
+#   L1 loss only.  No curriculum.  No conditioning.  No perceptual loss.
+#   This isolates the effect of backbone + domain from everything else.
+#
+# What it isolates:
+#   Backbone depth (SRResNet vs SRCNN) + domain specificity (surveillance vs generic).
+#   Comparing exp1 vs exp2 answers: "does training for the target domain help?"
+#
+# Run:
+#   python scripts/run_experiment.py \
+#       --config configs/exp2_srresnet_domain.yaml \
+#       --noref_dir data/RealSRSet
+#
+# Expected training time: ~1.5–3 hrs on GPU
+
+experiment:
+  name: exp2_srresnet_domain
+  seed: 42
+
+model:
+  name: srresnet
+  num_res_blocks: 8   # 8 residual blocks — standard configuration
+  num_features: 64
+
+data:
+  hr_train_dir: data/DIV2K/HR_train
+  hr_valid_dir: data/DIV2K/HR_valid
+  lr_train_dir: data/DIV2K/LR_train   # unused
+  lr_valid_dir: data/DIV2K/LR_valid   # unused
+  use_online_degradation: true
+  domain: surveillance   # CCTV-style degradation — matches VIRAT evaluation
+
+training:
+  num_epochs: 100
+  batch_size: 16
+  learning_rate: 0.0001
+  patch_size: 48
+  scale: 4
+  log_every: 10
+
+output:
+  base_dir: outputs/experiments
+  save_samples_every: 5
+  num_sample_images: 4
+
+loss:
+  pixel:
+    type: l1
+    weight: 1.0
+  perceptual:
+    enabled: false   # kept off to isolate backbone + domain effect
+
+curriculum:
+  enabled: false   # kept off to isolate backbone + domain effect
+  stages:
+    - name: easy
+      start_epoch: 1
+      blur_sigma: [0.2, 1.0]
+      noise_sigma: [0, 8]
+      noise_probability: 0.50
+      jpeg_quality: [80, 95]
+      jpeg_probability: 0.70
+      second_stage_probability: 0.0
+    - name: medium
+      start_epoch: 34
+      blur_sigma: [0.3, 2.5]
+      noise_sigma: [5, 25]
+      noise_probability: 0.75
+      jpeg_quality: [50, 85]
+      jpeg_probability: 0.85
+      second_stage_probability: 0.30
+    - name: hard
+      start_epoch: 67
+      blur_sigma: [0.5, 4.0]
+      noise_sigma: [10, 45]
+      noise_probability: 0.90
+      jpeg_quality: [20, 70]
+      jpeg_probability: 0.95
+      second_stage_probability: 0.70

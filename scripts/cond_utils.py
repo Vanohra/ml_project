@@ -69,6 +69,15 @@ _RESIZE_INDEX = {
 }
 _RESIZE_MAX = 3.0
 
+# Int version of _RESIZE_INDEX for loading from JSON.
+# extract_virat_frames.py saves resize_method as int via serialisable_params()
+# (PIL enum → int).  When build_cond_vector() receives that JSON-loaded dict,
+# resize_method is an int whose value is the PIL Resampling enum's integer value
+# (NEAREST=0, LANCZOS=1, BILINEAR=2, BICUBIC=3 in Pillow ≥ 9).
+# We build this at module load time so it adapts to whatever Pillow version
+# is installed rather than hard-coding constants.
+_RESIZE_INDEX_INT: dict[int, int] = {int(k): v for k, v in _RESIZE_INDEX.items()}
+
 
 # ── Main function ─────────────────────────────────────────────────────────────
 
@@ -92,8 +101,15 @@ def build_cond_vector(metadata: dict) -> "torch.Tensor":
     s2 = metadata["stage2"]   # None if the second degradation stage was skipped
 
     # ── Stage 1 fields ────────────────────────────────────────────────────────
-    blur_s1  = float(s1["blur_sigma"]) / _BLUR_S1_MAX
-    resize   = float(_RESIZE_INDEX.get(s1["resize_method"], 2)) / _RESIZE_MAX
+    blur_s1 = float(s1["blur_sigma"]) / _BLUR_S1_MAX
+    # resize_method may be a PIL Resampling enum (from live degradation) or an int
+    # (from JSON-loaded manifests where serialisable_params() converted it).
+    _rm = s1["resize_method"]
+    resize = float(
+        _RESIZE_INDEX_INT.get(_rm, _RESIZE_INDEX.get(_rm, 2))
+        if isinstance(_rm, int)
+        else _RESIZE_INDEX.get(_rm, 2)
+    ) / _RESIZE_MAX
     noise_s1 = float(s1["noise_sigma"]) / _NOISE_S1_MAX
 
     jq1 = s1["jpeg_quality"]                        # int or None

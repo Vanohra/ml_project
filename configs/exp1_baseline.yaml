@@ -1,0 +1,85 @@
+# configs/exp1_baseline.yaml
+# ==========================
+# EXPERIMENT 1 of 3 — Baseline
+#
+# Question answered: Can a small neural SR model beat bicubic interpolation
+#                   on real-world degradations?
+#
+# What this is:
+#   The simplest possible trainable super-resolution model (SimpleSRCNN, ~57K
+#   parameters).  Generic degradation — blur, noise, JPEG chosen randomly with
+#   no domain awareness.  No curriculum, no conditioning, no perceptual loss.
+#   This is the floor every other experiment must beat.
+#
+# What it isolates:
+#   Neural SR vs bicubic baseline.  Nothing else changes between exp1 and exp2.
+#
+# Run:
+#   python scripts/run_experiment.py \
+#       --config configs/exp1_baseline.yaml \
+#       --noref_dir data/RealSRSet
+#
+# Expected training time: ~20–40 min on GPU, ~2 hrs on CPU
+
+experiment:
+  name: exp1_baseline
+  seed: 42
+
+model:
+  name: srcnn   # SimpleSRCNN — 3-layer CNN, ~57K parameters
+
+data:
+  hr_train_dir: data/DIV2K/HR_train
+  hr_valid_dir: data/DIV2K/HR_valid
+  lr_train_dir: data/DIV2K/LR_train   # unused
+  lr_valid_dir: data/DIV2K/LR_valid   # unused
+  use_online_degradation: true
+  domain: null   # generic random degradation (no domain awareness)
+
+training:
+  num_epochs: 50
+  batch_size: 16
+  learning_rate: 0.0001
+  patch_size: 48
+  scale: 4
+  log_every: 10
+
+output:
+  base_dir: outputs/experiments
+  save_samples_every: 5
+  num_sample_images: 4
+
+loss:
+  pixel:
+    type: l1
+    weight: 1.0
+  perceptual:
+    enabled: false
+
+curriculum:
+  enabled: false
+  stages:
+    - name: easy
+      start_epoch: 1
+      blur_sigma: [0.2, 1.0]
+      noise_sigma: [0, 8]
+      noise_probability: 0.50
+      jpeg_quality: [80, 95]
+      jpeg_probability: 0.70
+      second_stage_probability: 0.0
+    - name: medium
+      start_epoch: 17
+      blur_sigma: [0.3, 2.5]
+      noise_sigma: [5, 25]
+      noise_probability: 0.75
+      jpeg_quality: [50, 85]
+      jpeg_probability: 0.85
+      second_stage_probability: 0.30
+    - name: hard
+      start_epoch: 34
+      blur_sigma: [0.5, 4.0]
+      noise_sigma: [10, 45]
+      noise_probability: 0.90
+      jpeg_quality: [20, 70]
+      jpeg_probability: 0.95
+      second_stage_probability: 0.70

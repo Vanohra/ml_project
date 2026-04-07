@@ -24,6 +24,53 @@ This project is built in stages. Each stage adds one new capability on top of th
 
 ---
 
+## Recommended Final Run
+
+> **Use this config for the class project submission.**
+> One command trains the strongest model that directly matches the proposal.
+
+**Config:** `configs/final_cond_surveillance.yaml`  
+**Experiment name:** `final_cond_surveillance`
+
+```bash
+python scripts/run_experiment.py \
+    --config configs/final_cond_surveillance.yaml \
+    --noref_dir data/RealSRSet
+```
+
+### Why this is the right config
+
+| Choice | Reason |
+|--------|--------|
+| **ConditionedSRResNet** | The proposal's title is "Domain-Conditioned Degradation-Aware SR" — this is literally that model. FiLM layers initialise to identity (γ=1, β=0), so training starts as stable as plain SRResNet. |
+| **Surveillance domain** | VIRAT is surveillance footage. Training on the domain you evaluate on is the whole point of domain conditioning. |
+| **Curriculum (3 stages, 33 ep each)** | Heavy CCTV noise (σ up to 45) from epoch 1 makes training unstable. Curriculum lets the model learn basic SR on lighter degradation first, then graduate to the full range. Validated PSNR is always measured on the full preset, so numbers are comparable across all epochs. |
+| **L1 pixel loss** | Sharper outputs than MSE. Standard for modern SR (Real-ESRGAN, SwinIR both use L1). Well-understood — easy to cite. |
+| **Perceptual loss at weight 0.05** | VGG16 is frozen — it cannot destabilise training. 0.05 is conservative enough that if it ever causes issues you can set it to 0 and retrain in the same time. Adds visible texture detail that helps on surveillance footage where fine edges matter. |
+| **No GAN** | GAN requires a discriminator, two-player training, and mode-collapse monitoring. Risk of wasted hours debugging a broken GAN outweighs any quality benefit at this stage. |
+
+### If you are short on time
+
+Edit two lines in `configs/final_cond_surveillance.yaml`:
+
+```yaml
+training:
+  num_epochs: 50       # was 100
+
+curriculum:
+  stages:
+    - name: easy
+      start_epoch: 1   # unchanged
+    - name: medium
+      start_epoch: 17  # was 34  (1/3 of 50)
+    - name: hard
+      start_epoch: 34  # was 67  (2/3 of 50)
+```
+
+Results will be ~1–2 dB weaker but the architecture, domain, and curriculum are unchanged — the experiment is still valid and reportable.
+
+---
+
 ## Folder Structure
 
 ```
@@ -278,6 +325,101 @@ the file — edit the numbers there to adjust a domain without touching any othe
 Takes LR validation images, upscales them with bicubic interpolation (no neural network),
 and reports PSNR. This is the score your trained model needs to beat.
 Typical bicubic PSNR on DIV2K: **~28–30 dB**.
+
+---
+
+## 12-Hour Final Workflow
+
+If you have one session to produce results, follow these commands in order.
+Everything below runs from `ml_project/`.
+
+### Prerequisites (10 minutes)
+
+```bash
+# 1. Install all dependencies
+pip install torch torchvision Pillow numpy pyyaml scikit-image
+pip install lpips piq                  # for SSIM / LPIPS / NIQE / BRISQUE
+pip install opencv-python              # only needed for VIRAT extraction
+
+# 2. Place your data
+#    data/DIV2K/HR_train/   ← 100–800 HR training images
+#    data/DIV2K/HR_valid/   ← 10–100 HR validation images
+#    data/RealSRSet/        ← real-world LR images (no HR needed)
+#    data/VIRAT/videos/     ← VIRAT .mp4/.avi files (optional)
+```
+
+### Step 1 — Run the strongest experiment (2–6 hours depending on GPU)
+
+```bash
+python scripts/run_experiment.py \
+    --config configs/ablation_srresnet_l1.yaml \
+    --noref_dir data/RealSRSet
+```
+
+This trains SRResNet for 100 epochs on the surveillance domain, runs no-ref
+evaluation on RealSRSet, and appends a row to `outputs/results.csv`.
+Training PSNR is logged to `outputs/experiments/ablation_srresnet_l1/metrics/val_psnr.json`.
+
+### Step 2 — (Optional) Run baseline for comparison (30 minutes)
+
+```bash
+python scripts/run_experiment.py \
+    --config configs/ablation_srcnn_l1.yaml \
+    --noref_dir data/RealSRSet
+```
+
+### Step 3 — VIRAT evaluation (if videos available, 20 minutes)
+
+```bash
+# Extract frames + generate degraded LR pairs
+python scripts/extract_virat_frames.py \
+    --video_dir data/VIRAT/videos \
+    --frames_per_video 20 \
+    --seed 42
+
+# Evaluate the trained model on VIRAT frames
+python scripts/evaluate_virat.py \
+    --experiment ablation_srresnet_l1
+```
+
+### Step 4 — Generate inference gallery (5 minutes)
+
+```bash
+python scripts/infer.py \
+    --experiment ablation_srresnet_l1 \
+    --img_dir data/RealSRSet \
+    --save_gallery
+```
+
+Gallery saved to `outputs/experiments/ablation_srresnet_l1/inference/*/gallery.png`.
+
+### Step 5 — Build comparison table (1 minute)
+
+```bash
+python scripts/compare_experiments.py
+```
+
+Results at `outputs/comparison_table.csv`.  Open in Excel or any CSV viewer.
+
+### Key output files for the report
+
+| File | Contents |
+|------|----------|
+| `outputs/comparison_table.csv` | All experiments side by side |
+| `outputs/experiments/<name>/metrics/val_psnr.json` | PSNR per epoch (training) |
+| `outputs/experiments/<name>/metrics/eval_noref_summary.json` | NIQE / BRISQUE means |
+| `outputs/experiments/<name>/metrics/eval_virat_summary.json` | VIRAT PSNR / SSIM |
+| `outputs/experiments/<name>/inference/*/gallery.png` | LR vs SR visual comparison |
+| `outputs/experiments/<name>/samples/epoch_*/` | Visual samples during training |
+
+> **Note on paired PSNR (SSIM/LPIPS):**
+> - **ConditionedSRResNet (exp3):** `run_experiment.py` automatically runs
+>   `evaluate_paired.py --regen_lr`, which re-degrades HR images on the fly and
+>   passes real conditioning vectors to the model. No `LR_valid/` directory needed.
+> - **SRResNet / SRCNN (exp1, exp2):** `evaluate_paired.py` needs pre-saved LR files
+>   in `data/DIV2K/LR_valid/`. These are only created if you run
+>   `python scripts/prepare_data.py` first (Stage 1 workflow). Without them, use
+>   `best_psnr_db` from `run_summary.json` and NIQE/BRISQUE for perceptual quality.
 
 ---
 
@@ -1212,13 +1354,39 @@ python scripts/evaluate_noref.py \
 **Note:** NIQE requires images >= 64 × 64.  Smaller images are skipped for NIQE;
 BRISQUE still runs on them.
 
-### ConditionedSRResNet and evaluation
+### ConditionedSRResNet and evaluation — true vs fallback conditioning
 
-Both eval scripts use a **zero conditioning vector** (all 13 elements = 0) when
-evaluating `ConditionedSRResNet`.  This signals "no degradation information" and
-the model produces SR output without domain-specific adaptation.  To evaluate with
-real conditioning, generate fresh LR images using `domain_degradation.degrade_domain()`
-and pass the metadata through `cond_utils.build_cond_vector()` before calling the model.
+The model receives a 13-element conditioning vector describing the degradation applied
+to each LR image.  Evaluation quality depends on whether that vector is accurate.
+
+| Evaluation path | Conditioning mode | How it works |
+|-----------------|-------------------|--------------|
+| `evaluate_paired.py --regen_lr` | **True** | Re-degrades each HR image using the training domain; captures exact params → real cond vector per image. Most faithful eval for the proposal. |
+| `evaluate_virat.py` | **True** | Reads per-frame surveillance params from `manifest.json` (saved by `extract_virat_frames.py`) → real cond vector per frame. |
+| `evaluate_paired.py` (no `--regen_lr`) | Fallback (zero) | Loads pre-saved LR files which have no metadata. Zero vector is passed — model still runs but conditioning head has no information. |
+| `infer.py` on RealSRSet | Fallback (zero) | Real-world images have unknown degradation. Zero vector is the only option. **This is a known limitation** for unseen images; the model still performs SR via its backbone. |
+
+**Recommended commands for conditioned model evaluation:**
+
+```bash
+# Paired DIV2K eval — true conditioning via re-degradation from HR:
+python scripts/evaluate_paired.py \
+    --experiment exp3_final \
+    --hr_dir data/DIV2K/HR_valid \
+    --regen_lr
+
+# VIRAT eval — true conditioning from manifest (automatic):
+python scripts/evaluate_virat.py --experiment exp3_final
+
+# RealSRSet inference — fallback conditioning (documented limitation):
+python scripts/infer.py \
+    --experiment exp3_final \
+    --img_dir data/RealSRSet \
+    --save_gallery
+```
+
+`run_experiment.py` automatically selects `--regen_lr` when the config specifies
+`model.name: conditioned_srresnet` and `data.domain` is set — no manual flag needed.
 
 ---
 
@@ -1308,40 +1476,44 @@ ablation_srcnn_l1        SimpleSRCNN          generic       no     l1     no    
 Comparison CSV : outputs/comparison_table.csv
 ```
 
-### Provided ablation configs
+### The three experiments
 
-Three ready-to-run configs in `configs/` cover the core ablation axes:
+| # | Config | Experiment name | Model | Domain | Curriculum | Perceptual | What it answers |
+|---|--------|-----------------|-------|--------|------------|------------|-----------------|
+| 1 | `exp1_baseline.yaml` | `exp1_baseline` | SimpleSRCNN | generic | no | no | Does neural SR beat bicubic at all? |
+| 2 | `exp2_srresnet_domain.yaml` | `exp2_srresnet_domain` | SRResNet | surveillance | no | no | Does domain-specific training with a deeper backbone help? |
+| 3 | `exp3_final.yaml` | `exp3_final` | ConditionedSRResNet | surveillance | yes | yes (0.05) | Does the full system (conditioning + curriculum + perceptual) outperform the simpler model? |
 
-| Config | What it isolates |
-|--------|-----------------|
-| `ablation_srcnn_l1.yaml` | Baseline: smallest model, generic degradation, L1 loss |
-| `ablation_srresnet_l1.yaml` | Backbone + domain: SRResNet, surveillance domain, L1 loss |
-| `ablation_srresnet_perceptual.yaml` | Loss: same as above but adds VGG16 perceptual term |
+**Reading the table:**
+- Exp 1 → Exp 2: two things change together (model depth, domain). Shows whether targeting the right degradation domain with a stronger backbone is worth it.
+- Exp 2 → Exp 3: three things change (conditioning, curriculum, perceptual). Shows whether the full proposal system beats the plain domain-specific baseline. This is the core claim.
 
-Comparing A vs B isolates the effect of model size and domain-specific training.
-Comparing B vs C isolates the effect of perceptual loss.
+### Running the three experiments in order
 
-### Running all three ablations in sequence
+Run these one at a time. Each one trains to completion before the next starts.
 
 ```bash
-# Experiment A — SRCNN, generic, L1
+# Experiment 1 — SRCNN baseline (~30 min GPU)
 python scripts/run_experiment.py \
-    --config configs/ablation_srcnn_l1.yaml \
+    --config configs/exp1_baseline.yaml \
     --noref_dir data/RealSRSet
 
-# Experiment B — SRResNet, surveillance, L1
+# Experiment 2 — SRResNet + surveillance domain (~2 hrs GPU)
 python scripts/run_experiment.py \
-    --config configs/ablation_srresnet_l1.yaml \
+    --config configs/exp2_srresnet_domain.yaml \
     --noref_dir data/RealSRSet
 
-# Experiment C — SRResNet, surveillance, L1 + perceptual
+# Experiment 3 — Full final model (~3 hrs GPU, downloads VGG16 on first run)
 python scripts/run_experiment.py \
-    --config configs/ablation_srresnet_perceptual.yaml \
+    --config configs/exp3_final.yaml \
     --noref_dir data/RealSRSet
 
-# Print the comparison table
+# Generate comparison table (run after all three finish)
 python scripts/compare_experiments.py
 ```
+
+The comparison table is written to `outputs/comparison_table.csv`.
+Open in Excel or any CSV viewer to get the full side-by-side results.
 
 ---
 

@@ -228,8 +228,41 @@ def main():
         return
 
     # ── Step 2: Paired evaluation ─────────────────────────────────────────────
-    has_paired_data = hr_valid.exists() and lr_valid.exists()
-    if has_paired_data:
+    # Three cases:
+    #
+    # A) ConditionedSRResNet + domain set → --regen_lr mode.
+    #    HR images are re-degraded on the fly; actual conditioning vectors are
+    #    captured and passed to the model.  No LR_valid directory is needed.
+    #    This is the most faithful eval for the proposal model.
+    #
+    # B) Pre-saved LR_valid directory exists → standard paired eval.
+    #    Conditioning falls back to zero vector for conditioned models.
+    #
+    # C) Neither A nor B → skip and point to val_psnr.json.
+    use_online    = data_cfg.get("use_online_degradation", True)
+    has_hr_valid  = hr_valid.exists()
+    has_lr_valid  = lr_valid.exists()
+    model_name    = cfg.get("model", {}).get("name", "")
+    is_conditioned = model_name == "conditioned_srresnet"
+    domain         = data_cfg.get("domain")
+
+    if is_conditioned and domain and has_hr_valid:
+        # Case A: re-degrade from HR, true conditioning
+        eval_paired_cmd = [
+            sys.executable,
+            str(project_dir / "scripts" / "evaluate_paired.py"),
+            "--experiment", exp_name,
+            "--hr_dir",     str(hr_valid),
+            "--regen_lr",
+            "--checkpoint", args.checkpoint,
+        ]
+        rc = _run(eval_paired_cmd,
+                  "STEP 2 / 3 — Paired evaluation with true conditioning (--regen_lr)")
+        if rc != 0:
+            print(f"[warn] Paired eval returned exit code {rc} — results may be incomplete.")
+
+    elif has_hr_valid and has_lr_valid:
+        # Case B: standard paired eval with pre-saved LR files
         eval_paired_cmd = [
             sys.executable,
             str(project_dir / "scripts" / "evaluate_paired.py"),
@@ -241,10 +274,23 @@ def main():
         rc = _run(eval_paired_cmd, "STEP 2 / 3 — Paired evaluation (PSNR / SSIM / LPIPS)")
         if rc != 0:
             print(f"[warn] Paired eval returned exit code {rc} — results may be incomplete.")
+
+    elif use_online and not has_lr_valid:
+        # Case C: online degradation, no LR files, model not conditioned (or no domain)
+        print(f"\n[skip] Paired eval skipped — this experiment uses online degradation.")
+        print(f"  No pre-saved LR validation files at: {lr_valid}")
+        print(f"  Best validation PSNR is in:")
+        print(f"    {exp_dir / 'metrics' / 'val_psnr.json'}  (written each epoch)")
+        print(f"    {exp_dir / 'run_summary.json'}           (best_psnr_db field)")
+        print(f"  To also get SSIM/LPIPS with true conditioning (conditioned models):")
+        print(f"    python scripts/evaluate_paired.py \\")
+        print(f"        --experiment {exp_name} \\")
+        print(f"        --hr_dir {hr_valid} \\")
+        print(f"        --regen_lr")
     else:
-        print(f"\n[skip] Paired eval skipped — HR/LR val dirs not found:")
-        print(f"         HR: {hr_valid}")
-        print(f"         LR: {lr_valid}")
+        print(f"\n[skip] Paired eval skipped — directories not found:")
+        print(f"         HR: {hr_valid}  (exists: {has_hr_valid})")
+        print(f"         LR: {lr_valid}  (exists: {has_lr_valid})")
 
     # ── Step 3: No-reference evaluation ──────────────────────────────────────
     if args.noref_dir:

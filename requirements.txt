@@ -8,5 +8,8 @@ pyyaml
 scikit-image
 
 # Optional — install for additional evaluation metrics:
-# pip install lpips      (LPIPS perceptual similarity in evaluate_paired.py)
-# pip install piq        (NIQE + BRISQUE in evaluate_noref.py)
+# pip install lpips           (LPIPS perceptual similarity — evaluate_paired.py)
+# pip install piq             (NIQE + BRISQUE no-reference quality — evaluate_noref.py)
+
+# Optional — required only for VIRAT video frame extraction:
+# pip install opencv-python   (video reading — extract_virat_frames.py)

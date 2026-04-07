@@ -1,0 +1,144 @@
+# configs/final_cond_surveillance.yaml
+# =====================================
+# RECOMMENDED FINAL CONFIG — CSC 4850 Spring 2026
+# Domain-Conditioned Degradation-Aware Blind Super-Resolution
+# Team: Dany George Nishanth, Vanohra Gaspard, Sabirin Mohamed
+#
+# ── What this config does ─────────────────────────────────────────────────────
+#
+# Model     : ConditionedSRResNet (~1.03M params)
+#             SRResNet backbone + FiLM conditioning on degradation metadata.
+#             The model receives both the LR image AND a 13-element vector
+#             describing how that image was degraded (blur, noise, JPEG, domain).
+#             FiLM layers start at identity (γ=1, β=0), so training is as stable
+#             as plain SRResNet from epoch 1.
+#
+# Domain    : surveillance
+#             Matches the VIRAT evaluation target — CCTV-style degradation with
+#             heavy blur (1–4σ), high noise (10–45σ), aggressive JPEG (20–60),
+#             and high-probability second-stage re-encoding.  The conditioning
+#             vector tells the model exactly how bad each frame is.
+#
+# Curriculum: 3 stages over 100 epochs
+#             Easy   (ep  1–33): lighter degradation — model learns basic SR first
+#             Medium (ep 34–66): mid-range degradation — adds noise and artifacts
+#             Hard   (ep 67–100): full surveillance preset — matches validation
+#             Validation always uses the full preset so PSNR is comparable across
+#             all 100 epochs regardless of training stage.
+#
+# Loss      : L1 pixel (w=1.0) + VGG16 perceptual relu2_2 (w=0.05)
+#             L1 is the primary signal. Perceptual at 0.05 adds texture sharpness
+#             without risking artifacts. VGG16 is frozen — it cannot destabilise
+#             training. Weight 0.05 is deliberately conservative; increase to 0.1
+#             only if you have time to run a second experiment.
+#
+# ── Why not use GAN? ─────────────────────────────────────────────────────────
+#             GAN training requires a discriminator, two-player scheduling, and
+#             mode-collapse monitoring. Getting it wrong produces outputs worse
+#             than bicubic and cannot be debugged in a 12-hour window.
+#
+# ── Training time estimate ────────────────────────────────────────────────────
+#             GPU (RTX 3060 or better): ~3–5 hours for 100 epochs, 100 HR images
+#             CPU only: not recommended — use 50 epochs and reduce batch to 8
+#
+# ── Quick start ──────────────────────────────────────────────────────────────
+#             python scripts/train.py --config configs/final_cond_surveillance.yaml
+#
+# ── Full pipeline (train + no-ref eval + results CSV) ────────────────────────
+#             python scripts/run_experiment.py \
+#                 --config configs/final_cond_surveillance.yaml \
+#                 --noref_dir data/RealSRSet
+#
+# ── If you run out of time ────────────────────────────────────────────────────
+#             Reduce num_epochs to 50 and set curriculum medium start_epoch to 17,
+#             hard start_epoch to 34.  Results will be slightly weaker but the
+#             experiment is still valid and the architecture is unchanged.
+
+experiment:
+  name: final_cond_surveillance   # → outputs/experiments/final_cond_surveillance/
+  seed: 42                        # change to 123 for a second reproducible run
+
+model:
+  name: conditioned_srresnet      # ConditionedSRResNet with FiLM conditioning
+  num_res_blocks: 8               # 8 residual blocks (~1.03M params total)
+  num_features: 64                # feature channels — standard width
+  embed_dim: 64                   # degradation embedding size (= num_features)
+
+data:
+  hr_train_dir: data/DIV2K/HR_train
+  hr_valid_dir: data/DIV2K/HR_valid
+  lr_train_dir: data/DIV2K/LR_train   # unused — online degradation is active
+  lr_valid_dir: data/DIV2K/LR_valid   # unused — online degradation is active
+
+  use_online_degradation: true    # required for conditioning to work
+  domain: surveillance            # CCTV/IP camera degradation preset
+
+training:
+  num_epochs: 100                 # 100 epochs recommended for conditioned model
+  batch_size: 16                  # reduce to 8 if you get CUDA out-of-memory
+  learning_rate: 0.0001           # Adam, 1e-4 — stable default for SR
+  patch_size: 48                  # LR crop size; HR crop = 48 × 4 = 192
+  scale: 4                        # 4× super-resolution
+  log_every: 10                   # print batch loss every 10 batches
+
+output:
+  base_dir: outputs/experiments
+  save_samples_every: 5           # save LR|Bicubic|SR|HR comparison every 5 epochs
+  num_sample_images: 4
+
+# ── Loss ──────────────────────────────────────────────────────────────────────
+# L1 is the primary pixel reconstruction signal.
+# Perceptual at weight 0.05 is conservative and safe alongside conditioning +
+# curriculum.  VGG16 weights (~58 MB) are downloaded automatically on first run.
+loss:
+  pixel:
+    type: l1       # L1 preferred: sharper than MSE, doesn't over-penalise outliers
+    weight: 1.0
+  perceptual:
+    enabled: true  # VGG16 relu2_2 — frozen, cannot destabilise training
+    weight: 0.05   # conservative; increase to 0.1 only if first run is stable
+    layer: relu2_2 # mid-level texture features (safer than relu3_3)
+
+# ── Curriculum training ────────────────────────────────────────────────────────
+# Three stages of increasing surveillance-style degradation severity.
+# Stage boundaries are tuned for 100 epochs (~33 epochs each stage).
+# Validation always uses the FULL surveillance preset — not the curriculum stage.
+curriculum:
+  enabled: true
+
+  stages:
+
+    # ── Easy (epochs 1–33): lighter surveillance degradation ──────────────────
+    # Model learns basic sharpening and mild denoising before seeing the hard cases.
+    # Still uses surveillance character (heavier than mobile) but within safe range.
+    - name: easy
+      start_epoch: 1
+      blur_sigma: [0.5, 1.5]        # real surveillance starts at 1.0; we start lighter
+      noise_sigma: [5, 20]           # real goes to 45; we cap at 20 here
+      noise_probability: 0.70        # 70% of images get noise (real is 95%)
+      jpeg_quality: [50, 80]         # real goes down to 20; we stay above 50
+      jpeg_probability: 0.80         # real is 95%
+      second_stage_probability: 0.10 # rare second-pass re-encode in easy stage
+
+    # ── Medium (epochs 34–66): approaching full surveillance range ────────────
+    # Noise and JPEG artifacts increase. Second-stage re-encoding becomes common.
+    - name: medium
+      start_epoch: 34
+      blur_sigma: [0.8, 2.5]
+      noise_sigma: [10, 32]
+      noise_probability: 0.85
+      jpeg_quality: [28, 60]
+      jpeg_probability: 0.90
+      second_stage_probability: 0.40
+
+    # ── Hard (epochs 67–100): full surveillance preset ────────────────────────
+    # Matches the DOMAIN_PRESETS['surveillance'] ranges exactly.
+    # Model must now handle the same distribution it is validated on.
+    - name: hard
+      start_epoch: 67
+      blur_sigma: [1.0, 4.0]        # exact surveillance preset range
+      noise_sigma: [10, 45]
+      noise_probability: 0.95
+      jpeg_quality: [20, 60]
+      jpeg_probability: 0.95
+      second_stage_probability: 0.75

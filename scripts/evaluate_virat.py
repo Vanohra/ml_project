@@ -140,7 +140,19 @@ def load_model(exp_dir: Path, config_path, checkpoint_name: str,
 
 @torch.no_grad()
 def eval_pair(lr_path: Path, hr_path: Path, scale: int,
-              model, lpips_fn, device: torch.device, has_cond: bool) -> dict:
+              model, lpips_fn, device: torch.device, has_cond: bool,
+              deg_params: dict | None = None) -> tuple[dict, bool]:
+    """
+    Evaluate one LR/HR pair.
+
+    deg_params : degradation metadata dict as stored in manifest.json
+                 (with "domain", "stage1", "stage2" keys).
+                 When provided for a conditioned model, the actual conditioning
+                 vector is built from this metadata — true conditioning.
+                 When None, a zero vector is used — fallback conditioning.
+
+    Returns (metrics_dict, used_true_cond).
+    """
     hr_img = Image.open(hr_path).convert("RGB")
     lr_img = Image.open(lr_path).convert("RGB")
 
@@ -158,13 +170,23 @@ def eval_pair(lr_path: Path, hr_path: Path, scale: int,
     if HAS_LPIPS and lpips_fn is not None:
         row["lpips_bicubic"] = compute_lpips(bicubic, hr, lpips_fn)
 
+    used_true_cond = False
     if model is not None:
         model_input = bicubic if model.expects_upsampled_input else lr
 
         if has_cond:
-            from cond_utils import COND_DIM
-            cond = torch.zeros(1, COND_DIM, device=device)
-            sr   = model(model_input, cond).clamp(0, 1)
+            if deg_params is not None:
+                # True conditioning: build the actual vector from manifest metadata.
+                # resize_method is stored as int in the manifest (PIL enum → int via
+                # serialisable_params); build_cond_vector handles both int and enum.
+                from cond_utils import build_cond_vector
+                cond = build_cond_vector(deg_params).unsqueeze(0).to(device)
+                used_true_cond = True
+            else:
+                # Fallback: zero vector — model still runs, just without metadata.
+                from cond_utils import COND_DIM
+                cond = torch.zeros(1, COND_DIM, device=device)
+            sr = model(model_input, cond).clamp(0, 1)
         else:
             sr = model(model_input).clamp(0, 1)
 
@@ -174,7 +196,7 @@ def eval_pair(lr_path: Path, hr_path: Path, scale: int,
         if HAS_LPIPS and lpips_fn is not None:
             row["lpips_model"] = compute_lpips(sr, hr, lpips_fn)
 
-    return row
+    return row, used_true_cond
 
 
 # ── Aggregation ────────────────────────────────────────────────────────────────
@@ -194,9 +216,17 @@ def aggregate(rows: list[dict], metric: str) -> dict | None:
 
 def load_manifest(frames_dir: Path) -> dict:
     """
-    Return {filename -> manifest_entry} for quick lookup during CSV writing.
-    Filename is the HR filename (e.g. '0042_hr.png').
-    Returns empty dict if manifest.json is not found.
+    Return {hr_filename -> manifest_entry} for quick lookup during CSV writing.
+    HR filename is the bare name, e.g. '0042_hr.png'.
+
+    Each entry is the full manifest frame dict, including:
+      "global_id", "video", "frame_idx", "timestamp_s", "degradation"
+    The "degradation" sub-dict has keys "domain", "stage1", "stage2" — the
+    exact surveillance params used when extract_virat_frames.py degraded the
+    frame. "resize_method" inside stage1 is stored as int (Pillow enum value).
+
+    Returns empty dict if manifest.json is not found (older frame directories
+    without a manifest still work; conditioning falls back to zero vector).
     """
     manifest_path = frames_dir / "manifest.json"
     if not manifest_path.exists():
@@ -259,7 +289,9 @@ def main():
             has_cond   = getattr(model, "expects_cond_vector", False)
             scale      = cfg.get("training", {}).get("scale", args.scale)
             if has_cond:
-                print("  [note] ConditionedSRResNet: zero conditioning vector for eval.")
+                print("  [cond] ConditionedSRResNet detected.")
+                print("         True conditioning: reads per-frame degradation params from manifest.json.")
+                print("         Fallback (zero vector): used only for frames missing from the manifest.")
         except FileNotFoundError as e:
             print(f"[warn] Could not load model:\n  {e}\n  Falling back to bicubic only.")
 
@@ -281,24 +313,39 @@ def main():
     print(f"\nEvaluating {len(hr_files)} frame pairs  "
           f"[split: {args.split}]  (scale x{scale})...")
 
-    # ── Per-image loop ─────────────────────────────────────────────────────────
+    # ── Per-frame loop ─────────────────────────────────────────────────────────
     rows = []
+    n_true_cond = 0   # frames evaluated with actual degradation metadata
+    n_fallback  = 0   # frames evaluated with zero conditioning vector
+
     for i, hr_p in enumerate(hr_files, 1):
         lr_p = lr_dir / hr_p.name.replace("_hr.", "_lr.")
         if not lr_p.exists():
             print(f"  [warn] No LR match for {hr_p.name} — skipping.")
             continue
 
-        metrics = eval_pair(lr_p, hr_p, scale, model, lpips_fn, device, has_cond)
+        # Provenance + degradation params from manifest
+        meta       = manifest_lookup.get(hr_p.name, {})
+        deg_params = meta.get("degradation")   # None if frame not in manifest
 
-        # Provenance from manifest
-        meta = manifest_lookup.get(hr_p.name, {})
-        row  = {
+        metrics, used_true = eval_pair(
+            lr_p, hr_p, scale, model, lpips_fn, device, has_cond,
+            deg_params=deg_params,
+        )
+
+        if has_cond and model is not None:
+            if used_true:
+                n_true_cond += 1
+            else:
+                n_fallback += 1
+
+        row = {
             "filename":    hr_p.name,
             "global_id":   meta.get("global_id", ""),
             "video":       meta.get("video",      ""),
             "frame_idx":   meta.get("frame_idx",  ""),
             "timestamp_s": meta.get("timestamp_s",""),
+            "cond_mode":   ("true" if used_true else "fallback") if has_cond and model else "n/a",
             **metrics,
         }
         rows.append(row)
@@ -306,8 +353,9 @@ def main():
         psnr_b = f"{metrics.get('psnr_bicubic', 0):.2f}"
         psnr_m = (f"{metrics.get('psnr_model', 0):.2f}"
                   if "psnr_model" in metrics else "n/a")
+        cond_tag = f"  [{row['cond_mode']} cond]" if has_cond and model else ""
         print(f"  [{i:3d}/{len(hr_files)}] {hr_p.name:<22s}  "
-              f"bicubic {psnr_b} dB  model {psnr_m} dB")
+              f"bicubic {psnr_b} dB  model {psnr_m} dB{cond_tag}")
 
     if not rows:
         print("[error] No frame pairs evaluated.");  return
@@ -323,17 +371,33 @@ def main():
                         for k, v in row.items()})
     print(f"\nPer-frame CSV  : {csv_path}")
 
+    # ── Conditioning mode summary ─────────────────────────────────────────────
+    if has_cond and model is not None:
+        total_cond = n_true_cond + n_fallback
+        if n_fallback == 0:
+            print(f"\n[cond] All {n_true_cond}/{total_cond} frames used TRUE conditioning "
+                  f"(actual surveillance degradation params from manifest).")
+        elif n_true_cond == 0:
+            print(f"\n[cond] WARNING: All {n_fallback}/{total_cond} frames used FALLBACK "
+                  f"conditioning (zero vector). manifest.json may be missing or outdated.")
+            print(f"  Re-run extract_virat_frames.py to regenerate the manifest.")
+        else:
+            print(f"\n[cond] {n_true_cond}/{total_cond} frames: TRUE conditioning  |  "
+                  f"{n_fallback}/{total_cond} frames: FALLBACK (zero vector).")
+
     # ── Summary JSON ──────────────────────────────────────────────────────────
     metrics_list = ["psnr", "ssim", "lpips"]
     methods      = ["bicubic"] + (["model"] if model is not None else [])
 
     summary = {
-        "experiment":  args.experiment,
-        "checkpoint":  None if args.bicubic_only else f"{args.checkpoint}.pth",
-        "split":       args.split,
-        "num_frames":  len(rows),
-        "scale":       scale,
-        "frames_dir":  str(frames_dir),
+        "experiment":     args.experiment,
+        "checkpoint":     None if args.bicubic_only else f"{args.checkpoint}.pth",
+        "split":          args.split,
+        "num_frames":     len(rows),
+        "scale":          scale,
+        "frames_dir":     str(frames_dir),
+        "cond_true":      n_true_cond if has_cond and model else None,
+        "cond_fallback":  n_fallback  if has_cond and model else None,
     }
     for method in methods:
         summary[method] = {}

@@ -1,7 +1,8 @@
 """
 train.py
 --------
-Trains SimpleSRCNN on your DIV2K image pairs.
+Trains a super-resolution model (SimpleSRCNN, SRResNet, or ConditionedSRResNet)
+on your DIV2K image pairs.
 
 What this script does, step by step:
   1. Reads all settings from configs/default.yaml (no more hardcoded constants)
