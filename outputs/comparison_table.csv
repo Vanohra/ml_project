@@ -1,0 +1,4 @@
+experiment,model,domain,curriculum,loss_pixel,loss_perceptual,best_psnr_train,psnr_bicubic,psnr_model,ssim_model,lpips_model,niqe_model,brisque_model,virat_psnr_model,epochs,seed,ssim_bicubic,lpips_bicubic,niqe_bicubic,brisque_bicubic,virat_psnr_bicubic
+exp1_baseline,SimpleSRCNN,generic,no,l1,no,24.6174,25.0539,24.6177,0.672,0.5301,,67.8184,,50,42,0.6903,0.5514,,65.0192,
+exp2_srresnet_domain,SRResNet,surveillance,no,l1,no,20.9831,25.0539,22.0261,0.4578,0.6565,,7.6207,,100,42,0.6903,0.5514,,65.0192,
+exp3_final,ConditionedSRResNet,surveillance,yes,l1,yes,21.0476,20.9743,20.9984,0.4302,0.7352,,7.0146,,100,42,0.4174,0.8376,,65.0192,
