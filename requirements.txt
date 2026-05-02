@@ -1,15 +1,6 @@
-Pillow
-torch
-torchvision
-numpy
-pyyaml
-
-# Required for SSIM in evaluate_paired.py
-scikit-image
-
-# Optional — install for additional evaluation metrics:
-# pip install lpips           (LPIPS perceptual similarity — evaluate_paired.py)
-# pip install piq             (NIQE + BRISQUE no-reference quality — evaluate_noref.py)
-
-# Optional — required only for VIRAT video frame extraction:
-# pip install opencv-python   (video reading — extract_virat_frames.py)
+torch>=2.0.0
+torchvision>=0.15.0
+Pillow>=9.0.0
+numpy>=1.23.0
+matplotlib>=3.5.0
+pyyaml>=6.0

@@ -22,12 +22,12 @@ Supports three modes controlled by which constructor arguments you pass:
 
     Training (patch_size is not None):
       Fresh degradation parameters are sampled each __getitem__ call,
-      so every epoch sees different random degradations. ✓
+      so every epoch sees different random degradations. [OK]
 
     Validation (patch_size=None):
       Degradation parameters are pre-sampled ONCE at dataset creation time.
       The same validation image always gets the same degradation every epoch,
-      so PSNR numbers are comparable across epochs and across runs. ✓
+      so PSNR numbers are comparable across epochs and across runs. [OK]
       (This works because train.py calls set_seed() before creating datasets.)
 
 Think of it as a vending machine:
@@ -40,6 +40,7 @@ import random
 import sys
 from pathlib import Path
 
+import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
@@ -97,6 +98,7 @@ class DIV2KDataset(Dataset):
         return_metadata=False,
         return_cond_vector=False,
         curriculum_stage=None,
+        upsample_lr=True,
     ):
         # ── Validate arguments ────────────────────────────────────────────────
         if lr_dir is None and degradation_fn is None and domain is None:
@@ -127,6 +129,14 @@ class DIV2KDataset(Dataset):
         self.domain             = domain
         self.return_metadata    = return_metadata
         self.return_cond_vector = return_cond_vector
+        # upsample_lr=True  → default/legacy behaviour (raw LR returned; the
+        #                       training loop handles bicubic pre-upsampling for
+        #                       models like SimpleSRCNN that need it).
+        # upsample_lr=False → explicitly request raw LR at LR resolution;
+        #                       used with SRResNet which upsamples internally.
+        # Both values currently produce the same raw LR tensor — the flag is
+        # semantic documentation for the training script's intent.
+        self.upsample_lr        = upsample_lr
 
         # curriculum_stage is intentionally mutable so the training loop can
         # update it each epoch without recreating the dataset.
@@ -321,13 +331,17 @@ class DIV2KDataset(Dataset):
                         hr_img, scale=self.scale, domain=self.domain,
                     )
             else:
-                # Validation: use the pre-sampled params so results are stable
+                # Validation: use pre-sampled params AND a fixed numpy seed so
+                # the noise pattern is identical across epochs (truly reproducible).
+                _np_state = np.random.get_state()
+                np.random.seed(index)
                 lr_img, metadata = self._degrade_domain(
                     hr_img,
                     scale=self.scale,
                     domain=self.domain,
                     params=self._val_params[index],
                 )
+                np.random.set_state(_np_state)
 
         elif self.degradation_fn is not None:
             # ── Mode B: generic online degradation ────────────────────────────
@@ -374,6 +388,29 @@ if __name__ == "__main__":
         print(f"  {title}")
         print("=" * 60)
 
+    # ── upsample_lr parameter test ────────────────────────────────────────────
+    section("upsample_lr=True vs upsample_lr=False (semantic flag test)")
+    try:
+        ds_true  = DIV2KDataset(hr_dir=base / "HR_train",
+                                degradation_fn=lambda img: degrade(img, scale=SCALE),
+                                patch_size=PATCH, scale=SCALE, upsample_lr=True)
+        ds_false = DIV2KDataset(hr_dir=base / "HR_train",
+                                degradation_fn=lambda img: degrade(img, scale=SCALE),
+                                patch_size=PATCH, scale=SCALE, upsample_lr=False)
+        lr_t, hr_t = ds_true[0]
+        lr_f, hr_f = ds_false[0]
+        assert lr_t.shape == torch.Size([3, PATCH, PATCH]), \
+            f"upsample_lr=True LR shape: {lr_t.shape}"
+        assert lr_f.shape == torch.Size([3, PATCH, PATCH]), \
+            f"upsample_lr=False LR shape: {lr_f.shape}"
+        print(f"  upsample_lr=True  LR: {tuple(lr_t.shape)}  HR: {tuple(hr_t.shape)}")
+        print(f"  upsample_lr=False LR: {tuple(lr_f.shape)}  HR: {tuple(hr_f.shape)}")
+        print("  Both return raw LR at LR resolution.  [OK]")
+        print("  (Training loop handles upsampling for SimpleSRCNN;")
+        print("   SRResNet takes raw LR directly.)")
+    except FileNotFoundError as e:
+        print(f"  Skipped — HR images not found:\n  {e}")
+
     # ── Mode A: pre-saved LR ──────────────────────────────────────────────────
     section("Mode A — pre-saved LR files (Stage 1)")
     try:
@@ -387,7 +424,7 @@ if __name__ == "__main__":
         assert lr.shape == torch.Size([3, PATCH, PATCH])
         assert hr.shape == torch.Size([3, PATCH * SCALE, PATCH * SCALE])
         print(f"  Patch mode  — LR: {tuple(lr.shape)}  HR: {tuple(hr.shape)}")
-        print("  Shape check passed.  ✓")
+        print("  Shape check passed.  [OK]")
     except FileNotFoundError as e:
         print(f"  Skipped — LR files not found (run prepare_data.py first):\n  {e}")
 
@@ -403,12 +440,12 @@ if __name__ == "__main__":
         assert lr.shape == torch.Size([3, PATCH, PATCH])
         assert hr.shape == torch.Size([3, PATCH * SCALE, PATCH * SCALE])
         print(f"  Patch mode  — LR: {tuple(lr.shape)}  HR: {tuple(hr.shape)}")
-        print("  Shape check passed.  ✓")
+        print("  Shape check passed.  [OK]")
 
         lr_a, _ = ds_b[0]
         lr_b, _ = ds_b[0]
         assert not torch.equal(lr_a, lr_b)
-        print("  Randomness check passed (two calls differ).  ✓")
+        print("  Randomness check passed (two calls differ).  [OK]")
     except FileNotFoundError as e:
         print(f"  Skipped — HR images not found:\n  {e}")
 
@@ -429,14 +466,14 @@ if __name__ == "__main__":
             assert hr.shape == torch.Size([3, PATCH * SCALE, PATCH * SCALE]), \
                 f"HR shape wrong: {hr.shape}"
             print(f"  Patch mode  — LR: {tuple(lr.shape)}  HR: {tuple(hr.shape)}")
-            print("  Shape check passed.  ✓")
+            print("  Shape check passed.  [OK]")
 
             # Training calls should produce different LR for the same index
             lr_a, _ = ds_c[0]
             lr_b, _ = ds_c[0]
             assert not torch.equal(lr_a, lr_b), \
                 "Training should give fresh degradation every call!"
-            print("  Training randomness check passed.  ✓")
+            print("  Training randomness check passed.  [OK]")
         except FileNotFoundError as e:
             print(f"  Skipped — HR images not found:\n  {e}")
 
@@ -472,7 +509,7 @@ if __name__ == "__main__":
         else:
             print("  stage2: skipped this sample")
 
-        print("  Metadata shape + keys check passed.  ✓")
+        print("  Metadata shape + keys check passed.  [OK]")
     except FileNotFoundError as e:
         print(f"  Skipped — HR images not found:\n  {e}")
 
@@ -492,14 +529,14 @@ if __name__ == "__main__":
         lr_b, _ = val_domain[0]
         assert torch.equal(lr_a, lr_b), \
             "Validation should return identical LR for repeated calls on the same index!"
-        print("  Reproducibility check passed (same index → same LR).  ✓")
+        print("  Reproducibility check passed (same index -> same LR).  [OK]")
 
         # Different indices must give different LR
         lr_0, _ = val_domain[0]
         lr_1, _ = val_domain[1]
         assert not torch.equal(lr_0, lr_1), \
             "Different indices should give different LR tensors!"
-        print("  Diversity check passed (different indices → different LR).  ✓")
+        print("  Diversity check passed (different indices -> different LR).  [OK]")
 
     except FileNotFoundError as e:
         print(f"  Skipped — HR_valid images not found:\n  {e}")

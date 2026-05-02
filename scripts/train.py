@@ -59,7 +59,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dataset import DIV2KDataset
 from degradation import degrade
 from losses import build_loss
+from metrics import compute_ssim
 from models import build_model
+
+# ── Experiment preset override ─────────────────────────────────────────────────
+# Set True to force surveillance domain degradation regardless of the YAML config.
+# This is the top-level toggle for the class project's primary experiment.
+USE_SURVEILLANCE_PRESET = True
 
 
 # ── Seed control — makes results reproducible ─────────────────────────────────
@@ -410,24 +416,20 @@ def validate(
     device: torch.device,
     scale: int,
     use_cond: bool = False,
-) -> float:
+) -> tuple[float, float]:
     """
     Evaluates the model on the validation set.
 
-    During validation:
-      - Uses full images (not crops) for a fair PSNR measurement
-      - Does NOT update weights (no backward pass)
-      - Measures PSNR on each image and returns the average
-
-    Returns the average PSNR across all validation images.
+    Returns (avg_psnr, avg_ssim) across all validation images.
     """
     model.eval()
     psnr_scores = []
+    ssim_scores = []
 
     for batch in loader:
         if use_cond:
             lr, hr, cond = batch
-            cond = cond.to(device)   # (1, COND_DIM) — val_loader uses batch_size=1
+            cond = cond.to(device)
         else:
             lr, hr = batch
             cond = None
@@ -443,8 +445,10 @@ def validate(
 
         sr = model(model_input, cond) if cond is not None else model(model_input)
         psnr_scores.append(calculate_psnr(sr, hr))
+        ssim_scores.append(compute_ssim(sr, hr))
 
-    return sum(psnr_scores) / len(psnr_scores)
+    return (sum(psnr_scores) / len(psnr_scores),
+            sum(ssim_scores) / len(ssim_scores))
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -476,6 +480,13 @@ def main():
 
     cfg = load_config(config_path)
     cfg = resolve_paths(cfg, project_dir)
+
+    # Apply surveillance preset override (module-level flag at top of file)
+    if USE_SURVEILLANCE_PRESET:
+        cfg["data"]["domain"] = "surveillance"
+        cfg["data"]["use_online_degradation"] = True
+        print("[preset] USE_SURVEILLANCE_PRESET=True → "
+              "domain=surveillance, online degradation enabled")
 
     # Allow overriding the experiment name on the command line without editing YAML
     if args.experiment:
@@ -681,7 +692,8 @@ def main():
         avg_loss = loss_components["total"]
 
         # ── Validate ───────────────────────────────────────────────────────
-        avg_psnr = validate(model, val_loader, device, SCALE, use_cond=USE_COND)
+        avg_psnr, avg_ssim = validate(model, val_loader, device, SCALE,
+                                      use_cond=USE_COND)
 
         is_best = avg_psnr > best_psnr
         if is_best:
@@ -695,12 +707,26 @@ def main():
         print(f"\n  Train Loss : {avg_loss:.6f}{loss_detail}")
         print(f"  Val PSNR   : {avg_psnr:.2f} dB  (best: {best_psnr:.2f} dB)"
               + ("  <- new best!" if is_best else ""))
+        print(f"  Val SSIM   : {avg_ssim:.4f}")
 
         # ── Record metrics ─────────────────────────────────────────────────
         train_loss_history.append({"epoch": epoch, "loss": avg_loss,
                                    **{k: round(v, 6) for k, v in loss_components.items()
                                       if k != "total"}})
-        val_psnr_history.append({"epoch": epoch, "psnr": avg_psnr})
+        val_psnr_history.append({"epoch": epoch, "psnr": avg_psnr,
+                                  "ssim": round(avg_ssim, 6)})
+
+        # ── CSV logging ────────────────────────────────────────────────────
+        csv_path = project_dir / "outputs" / "training_log_srcnn.csv"
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+        write_header = not csv_path.exists()
+        with open(csv_path, "a", newline="") as _f:
+            import csv as _csv
+            _w = _csv.writer(_f)
+            if write_header:
+                _w.writerow(["epoch", "train_loss", "val_psnr", "val_ssim"])
+            _w.writerow([epoch, round(avg_loss, 6),
+                         round(avg_psnr, 4), round(avg_ssim, 6)])
 
         # Save JSON after every epoch — live updates you can read mid-run
         with open(exp_dir / "metrics" / "train_loss.json", "w") as f:

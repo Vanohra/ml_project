@@ -116,23 +116,174 @@ class SimpleSRCNN(nn.Module):
         return torch.clamp(out + x, 0.0, 1.0)
 
 
+import math
+
+
+# ── SRResNet building blocks ───────────────────────────────────────────────────
+
+class _ResidualBlock(nn.Module):
+    """Two 3×3 convs with a residual skip: out = f(x) + x."""
+
+    def __init__(self, num_features: int):
+        super().__init__()
+        self.block = nn.Sequential(
+            nn.Conv2d(num_features, num_features, kernel_size=3, padding=1),
+            nn.BatchNorm2d(num_features),
+            nn.PReLU(),
+            nn.Conv2d(num_features, num_features, kernel_size=3, padding=1),
+            nn.BatchNorm2d(num_features),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x + self.block(x)
+
+
+class _UpsampleBlock(nn.Module):
+    """Sub-pixel convolution block that doubles spatial resolution (PixelShuffle ×2)."""
+
+    def __init__(self, num_features: int):
+        super().__init__()
+        self.block = nn.Sequential(
+            nn.Conv2d(num_features, num_features * 4, kernel_size=3, padding=1),
+            nn.PixelShuffle(2),
+            nn.PReLU(),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.block(x)
+
+
+class SRResNet(nn.Module):
+    """
+    SRResNet super-resolution model (Ledig et al., CVPR 2017).
+
+    Takes a raw LR image at native resolution and outputs a 4× super-resolved
+    image.  Unlike SimpleSRCNN, this model handles upsampling internally using
+    learned sub-pixel convolution (PixelShuffle) instead of a fixed bicubic
+    pre-upsample.
+
+    Architecture:
+      Head   : Conv(3→64, 9×9) + PReLU
+      Body   : 8 × ResidualBlock(64)  +  Conv(64→64, 3×3) + BN
+               [global skip: add head features before upsample]
+      Upsample: 2 × UpsampleBlock (PixelShuffle ×2 each → total ×4)
+      Tail   : Conv(64→3, 9×9)
+
+    The model learns the full HR→LR mapping; there is NO residual skip from
+    the input image to the output (unlike SimpleSRCNN).
+
+    Parameters: ~957 K  (≈16× more capacity than SimpleSRCNN)
+    Scale     : 4× (fixed — matches the surveillance degradation preset)
+
+    Attribute:
+        expects_upsampled_input = False
+            Tells the training loop that this model receives raw LR, not a
+            bicubic-pre-upsampled image.
+    """
+
+    expects_upsampled_input = False
+
+    def __init__(self, scale: int = 4, num_res_blocks: int = 8,
+                 num_features: int = 64):
+        super().__init__()
+
+        if scale not in (2, 4, 8):
+            raise ValueError(f"scale must be 2, 4, or 8; got {scale}")
+
+        # ── Head ─────────────────────────────────────────────────────────────
+        self.head = nn.Sequential(
+            nn.Conv2d(3, num_features, kernel_size=9, padding=4),
+            nn.PReLU(),
+        )
+
+        # ── Body ─────────────────────────────────────────────────────────────
+        res_blocks = [_ResidualBlock(num_features) for _ in range(num_res_blocks)]
+        self.body = nn.Sequential(
+            *res_blocks,
+            nn.Conv2d(num_features, num_features, kernel_size=3, padding=1),
+            nn.BatchNorm2d(num_features),
+        )
+
+        # ── Upsample ──────────────────────────────────────────────────────────
+        num_up = int(math.log2(scale))
+        self.upsample = nn.Sequential(
+            *[_UpsampleBlock(num_features) for _ in range(num_up)]
+        )
+
+        # ── Tail ──────────────────────────────────────────────────────────────
+        self.tail = nn.Conv2d(num_features, 3, kernel_size=9, padding=4)
+
+        self._init_weights()
+
+    def _init_weights(self) -> None:
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, nonlinearity="relu")
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.ones_(m.weight)
+                nn.init.zeros_(m.bias)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        x       : raw LR tensor  (B, 3, H, W)           values in [0, 1]
+        returns : SR tensor      (B, 3, H×scale, W×scale)  clamped [0, 1]
+        """
+        head_out = self.head(x)
+        body_out = self.body(head_out)
+        merged   = head_out + body_out   # global residual stabilises deep training
+        up       = self.upsample(merged)
+        return torch.clamp(self.tail(up), 0.0, 1.0)
+
+
 # ── Quick self-test ────────────────────────────────────────────────────────────
 # Run: python scripts/model.py
 
 if __name__ == "__main__":
-    model = SimpleSRCNN()
+    print("=" * 55)
+    print("  model.py — self-test")
+    print("=" * 55)
 
-    # Count parameters
-    num_params = sum(p.numel() for p in model.parameters())
-    print(f"Model: SimpleSRCNN")
-    print(f"Total parameters: {num_params:,}")
+    # ── SimpleSRCNN ───────────────────────────────────────────────────────────
+    srcnn = SimpleSRCNN()
+    n_srcnn = sum(p.numel() for p in srcnn.parameters())
+    fake_lr_up = torch.rand(2, 3, 192, 192)   # already bicubic-upscaled
+    fake_sr    = srcnn(fake_lr_up)
 
-    # Test with a fake batch: 2 images, 3 channels, 192x192 pixels
-    fake_input = torch.rand(2, 3, 192, 192)
-    fake_output = model(fake_input)
+    print(f"\nSimpleSRCNN")
+    print(f"  Parameters : {n_srcnn:,}")
+    print(f"  Input      : {tuple(fake_lr_up.shape)}")
+    print(f"  Output     : {tuple(fake_sr.shape)}")
+    assert fake_lr_up.shape == fake_sr.shape, "SRCNN output shape mismatch!"
+    assert fake_sr.min() >= 0.0 and fake_sr.max() <= 1.0, "SRCNN values out of [0,1]!"
+    print("  Shape check   PASSED")
+    print("  Range [0,1]   PASSED")
 
-    print(f"Input  shape: {tuple(fake_input.shape)}")
-    print(f"Output shape: {tuple(fake_output.shape)}")
-    assert fake_input.shape == fake_output.shape, "Output shape mismatch!"
-    print("Shape check passed.")
-    print("model.py is working correctly.")
+    # ── SRResNet ──────────────────────────────────────────────────────────────
+    srresnet = SRResNet(scale=4, num_res_blocks=8, num_features=64)
+    n_srresnet = sum(p.numel() for p in srresnet.parameters())
+    fake_lr_raw = torch.rand(2, 3, 48, 48)    # raw LR at 1/4 size
+    fake_sr_r   = srresnet(fake_lr_raw)
+
+    print(f"\nSRResNet (scale=4, blocks=8, features=64)")
+    print(f"  Parameters : {n_srresnet:,}")
+    print(f"  Input      : {tuple(fake_lr_raw.shape)}")
+    print(f"  Output     : {tuple(fake_sr_r.shape)}")
+    assert tuple(fake_sr_r.shape) == (2, 3, 192, 192), \
+        f"SRResNet output shape mismatch: {tuple(fake_sr_r.shape)}"
+    assert fake_sr_r.min() >= 0.0 and fake_sr_r.max() <= 1.0, \
+        "SRResNet values out of [0,1]!"
+    print("  Shape check   PASSED  (48->192, x4 upscale)")
+    print("  Range [0,1]   PASSED")
+
+    print(f"\n  expects_upsampled_input: "
+          f"SimpleSRCNN={SimpleSRCNN.expects_upsampled_input}, "
+          f"SRResNet={SRResNet.expects_upsampled_input}")
+    assert SimpleSRCNN.expects_upsampled_input is True
+    assert SRResNet.expects_upsampled_input is False
+    print("  Flag checks   PASSED")
+
+    print("\n" + "=" * 55)
+    print("  model.py is working correctly.")
+    print("=" * 55)
