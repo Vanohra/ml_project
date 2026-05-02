@@ -42,6 +42,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.transforms.functional import to_tensor
@@ -360,6 +361,20 @@ class DIV2KDataset(Dataset):
         lr_tensor = to_tensor(lr_img)
         hr_tensor = to_tensor(hr_img)
 
+        # upsample_lr=True: bicubic-upsample LR to HR spatial size before
+        # returning, so models like SimpleSRCNN that operate at HR resolution
+        # can receive correctly-sized input from the dataset directly.
+        # upsample_lr=False: return raw LR at native (smaller) resolution;
+        # SRResNet and the training loop handle upsampling internally.
+        if self.upsample_lr:
+            hr_h, hr_w = hr_tensor.shape[1], hr_tensor.shape[2]
+            lr_tensor = F.interpolate(
+                lr_tensor.unsqueeze(0),
+                size=(hr_h, hr_w),
+                mode="bicubic",
+                align_corners=False,
+            ).squeeze(0).clamp(0.0, 1.0)
+
         if self.return_cond_vector:
             # Build a fixed-shape float tensor from the metadata dict.
             # This IS DataLoader-safe — shape (COND_DIM,) collates cleanly.
@@ -389,25 +404,44 @@ if __name__ == "__main__":
         print("=" * 60)
 
     # ── upsample_lr parameter test ────────────────────────────────────────────
-    section("upsample_lr=True vs upsample_lr=False (semantic flag test)")
+    section("upsample_lr: Mode B patch (True vs False) and Mode B full (True)")
     try:
-        ds_true  = DIV2KDataset(hr_dir=base / "HR_train",
-                                degradation_fn=lambda img: degrade(img, scale=SCALE),
-                                patch_size=PATCH, scale=SCALE, upsample_lr=True)
-        ds_false = DIV2KDataset(hr_dir=base / "HR_train",
-                                degradation_fn=lambda img: degrade(img, scale=SCALE),
-                                patch_size=PATCH, scale=SCALE, upsample_lr=False)
-        lr_t, hr_t = ds_true[0]
-        lr_f, hr_f = ds_false[0]
-        assert lr_t.shape == torch.Size([3, PATCH, PATCH]), \
-            f"upsample_lr=True LR shape: {lr_t.shape}"
-        assert lr_f.shape == torch.Size([3, PATCH, PATCH]), \
-            f"upsample_lr=False LR shape: {lr_f.shape}"
-        print(f"  upsample_lr=True  LR: {tuple(lr_t.shape)}  HR: {tuple(hr_t.shape)}")
-        print(f"  upsample_lr=False LR: {tuple(lr_f.shape)}  HR: {tuple(hr_f.shape)}")
-        print("  Both return raw LR at LR resolution.  [OK]")
-        print("  (Training loop handles upsampling for SimpleSRCNN;")
-        print("   SRResNet takes raw LR directly.)")
+        deg_fn = lambda img: degrade(img, scale=SCALE)
+
+        # Mode B, upsample_lr=True, patch — LR should be at HR size (192×192)
+        ds_up_patch = DIV2KDataset(hr_dir=base / "HR_train",
+                                   degradation_fn=deg_fn,
+                                   patch_size=PATCH, scale=SCALE, upsample_lr=True)
+        lr_up, hr_up = ds_up_patch[0]
+        assert lr_up.shape == torch.Size([3, PATCH * SCALE, PATCH * SCALE]), \
+            f"upsample_lr=True patch LR shape wrong: {lr_up.shape}"
+        assert hr_up.shape == torch.Size([3, PATCH * SCALE, PATCH * SCALE])
+        print(f"  Mode B, upsample_lr=True,  patch — LR: {tuple(lr_up.shape)}  "
+              f"HR: {tuple(hr_up.shape)}  [OK]")
+
+        # Mode B, upsample_lr=False, patch — LR should be raw (48×48)
+        ds_raw_patch = DIV2KDataset(hr_dir=base / "HR_train",
+                                    degradation_fn=deg_fn,
+                                    patch_size=PATCH, scale=SCALE, upsample_lr=False)
+        lr_raw, hr_raw = ds_raw_patch[0]
+        assert lr_raw.shape == torch.Size([3, PATCH, PATCH]), \
+            f"upsample_lr=False patch LR shape wrong: {lr_raw.shape}"
+        assert hr_raw.shape == torch.Size([3, PATCH * SCALE, PATCH * SCALE])
+        print(f"  Mode B, upsample_lr=False, patch — LR: {tuple(lr_raw.shape)}  "
+              f"HR: {tuple(hr_raw.shape)}  [OK]")
+
+        # Mode B, upsample_lr=True, full image — LR should be upsampled to HR size
+        ds_up_full = DIV2KDataset(hr_dir=base / "HR_train",
+                                   degradation_fn=deg_fn,
+                                   patch_size=None, scale=SCALE, upsample_lr=True)
+        lr_full, hr_full = ds_up_full[0]
+        assert lr_full.shape == hr_full.shape, \
+            f"upsample_lr=True full: LR {lr_full.shape} != HR {hr_full.shape}"
+        print(f"  Mode B, upsample_lr=True,  full  — LR: {tuple(lr_full.shape)}  "
+              f"HR: {tuple(hr_full.shape)}  [OK]")
+
+        print("  upsample_lr=True  → LR bicubic-upscaled to HR spatial size")
+        print("  upsample_lr=False → LR returned at native LR resolution")
     except FileNotFoundError as e:
         print(f"  Skipped — HR images not found:\n  {e}")
 

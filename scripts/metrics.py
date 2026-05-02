@@ -118,43 +118,51 @@ def compute_ssim(
 # Run: python scripts/metrics.py
 
 if __name__ == "__main__":
-    print("=" * 50)
+    print("=" * 55)
     print("  metrics.py — self-test")
-    print("=" * 50)
+    print("=" * 55)
 
     torch.manual_seed(0)
     B, C, H, W = 2, 3, 192, 192
 
-    # ── Identical images → PSNR = inf, SSIM = 1.0 ────────────────────────────
+    # ── Case 1: Identical images → PSNR = inf, SSIM = 1.0 ────────────────────
     img = torch.rand(B, C, H, W)
     psnr_id = compute_psnr(img, img)
     ssim_id = compute_ssim(img, img)
-    print(f"\nIdentical images:")
+    print(f"\n[1] Identical images:")
     print(f"  PSNR : {psnr_id}  (expected: inf)")
     print(f"  SSIM : {ssim_id:.6f}  (expected ~1.0)")
     assert psnr_id == float("inf"), "PSNR should be inf for identical images"
     assert abs(ssim_id - 1.0) < 1e-4, f"SSIM should be ≈1.0, got {ssim_id}"
     print("  PASSED")
 
-    # ── Noisy pair → PSNR and SSIM should both be in reasonable range ─────────
-    noise = torch.rand(B, C, H, W) * 0.1   # ~10 % noise
-    noisy = (img + noise).clamp(0, 1)
-    psnr_n = compute_psnr(img, noisy)
-    ssim_n = compute_ssim(img, noisy)
-    print(f"\nNoisy pair (noise sigma~0.05):")
-    print(f"  PSNR : {psnr_n:.2f} dB  (expected roughly 20–30 dB)")
-    print(f"  SSIM : {ssim_n:.4f}  (expected 0 < SSIM < 1)")
-    assert 15.0 < psnr_n < 50.0, f"PSNR out of expected range: {psnr_n}"
-    assert 0.0 < ssim_n < 1.0,   f"SSIM out of [0,1]: {ssim_n}"
+    # ── Case 2: All-zeros vs all-ones → PSNR = 0 dB, SSIM near 0 ─────────────
+    zeros = torch.zeros(B, C, H, W)
+    ones  = torch.ones(B, C, H, W)
+    psnr_zo = compute_psnr(zeros, ones)
+    ssim_zo = compute_ssim(zeros, ones)
+    print(f"\n[2] All-zeros vs all-ones:")
+    print(f"  PSNR : {psnr_zo:.2f} dB  (expected 0 dB)")
+    print(f"  SSIM : {ssim_zo:.4f}  (expected near 0)")
+    assert abs(psnr_zo - 0.0) < 0.01, f"PSNR should be ~0 dB, got {psnr_zo}"
+    assert ssim_zo < 0.05, f"SSIM should be near 0, got {ssim_zo}"
     print("  PASSED")
 
-    # ── Completely different images → SSIM near 0 ─────────────────────────────
-    img_b = torch.rand(B, C, H, W)
-    ssim_diff = compute_ssim(img, img_b)
-    print(f"\nRandom pair:")
-    print(f"  SSIM : {ssim_diff:.4f}  (expected near 0, possibly slightly negative)")
+    # ── Case 3: Small Gaussian noise → PSNR ~40 dB ───────────────────────────
+    # sigma=0.01 → MSE ≈ 0.0001 → PSNR ≈ 10*log10(1/0.0001) = 40 dB
+    torch.manual_seed(1)
+    base  = torch.rand(B, C, H, W)
+    noise = torch.randn(B, C, H, W) * 0.01
+    noisy = (base + noise).clamp(0, 1)
+    psnr_noise = compute_psnr(base, noisy)
+    ssim_noise = compute_ssim(base, noisy)
+    print(f"\n[3] Small Gaussian noise (sigma=0.01):")
+    print(f"  PSNR : {psnr_noise:.2f} dB  (expected ~40 dB)")
+    print(f"  SSIM : {ssim_noise:.4f}  (expected close to 1.0)")
+    assert 35.0 < psnr_noise < 50.0, f"PSNR should be ~40 dB, got {psnr_noise}"
+    assert ssim_noise > 0.9, f"SSIM should be close to 1.0, got {ssim_noise}"
     print("  PASSED")
 
-    print("\n" + "=" * 50)
+    print("\n" + "=" * 55)
     print("  metrics.py is working correctly.")
-    print("=" * 50)
+    print("=" * 55)

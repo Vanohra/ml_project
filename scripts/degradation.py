@@ -92,22 +92,22 @@ MOBILE_PRESET = {
     "noise_sigma_min":   0,
     "noise_sigma_max":   15,
     "noise_probability": 0.7,
-    "jpeg_quality_min":  60,
-    "jpeg_quality_max":  95,
-    "jpeg_probability":  0.85,
+    "jpeg_quality_min":  50,
+    "jpeg_quality_max":  90,
+    "jpeg_probability":  0.7,
     "scale":             4,
     "resize_methods":    ["bicubic", "bilinear", "lanczos"],
 }
 
 DASHCAM_PRESET = {
-    "blur_sigma_min":    0.5,
-    "blur_sigma_max":    2.5,
-    "noise_sigma_min":   5,
-    "noise_sigma_max":   30,
-    "noise_probability": 0.85,
-    "jpeg_quality_min":  30,
-    "jpeg_quality_max":  75,
-    "jpeg_probability":  0.90,
+    "blur_sigma_min":    1.0,
+    "blur_sigma_max":    3.0,
+    "noise_sigma_min":   10,
+    "noise_sigma_max":   40,
+    "noise_probability": 0.95,
+    "jpeg_quality_min":  20,
+    "jpeg_quality_max":  60,
+    "jpeg_probability":  0.95,
     "scale":             4,
     "resize_methods":    ["bicubic", "bilinear", "lanczos", "nearest"],
 }
@@ -314,6 +314,19 @@ def degrade(hr_image: Image.Image, scale: int = 4,
     return image
 
 
+def degrade_with_preset(hr_image: Image.Image, preset_config: dict) -> Image.Image:
+    """
+    Applies the full degradation pipeline using a domain preset config dict.
+
+    hr_image      : PIL Image — the clean high-resolution source
+    preset_config : dict from get_domain_preset() or one of the *_PRESET constants
+
+    Equivalent to degrade(hr_image, config=preset_config).
+    Provided as an explicit named function so call sites are self-documenting.
+    """
+    return degrade(hr_image, config=preset_config)
+
+
 # ── Quick self-test ────────────────────────────────────────────────────────────
 # Run: python scripts/degradation.py
 
@@ -345,23 +358,18 @@ if __name__ == "__main__":
     assert not np.array_equal(np.array(lr_a), np.array(lr_b))
     print("  Randomness check passed (two runs differ)  [OK]")
 
-    # ── Surveillance preset ───────────────────────────────────────────────────
-    print("\n[2] Surveillance preset via get_domain_preset()")
+    # ── degrade_with_preset() — explicit named wrapper ────────────────────────
+    print("\n[2] degrade_with_preset() with surveillance preset")
     surv_cfg = get_domain_preset("surveillance")
+    lr_wp = degrade_with_preset(fake_hr, surv_cfg)
+    assert lr_wp.size == expected, f"degrade_with_preset size mismatch: {lr_wp.size}"
+    print(f"  Output size  : {lr_wp.size}  [OK]")
+
     params_s = sample_params(surv_cfg)
-    print(f"  blur_sigma   : {params_s['blur_sigma']:.3f}  "
-          f"(range {surv_cfg['blur_sigma_min']}–{surv_cfg['blur_sigma_max']})")
-    print(f"  noise_sigma  : {params_s['noise_sigma']:.1f}  "
-          f"(range {surv_cfg['noise_sigma_min']}–{surv_cfg['noise_sigma_max']})")
-    print(f"  jpeg_quality : {params_s['jpeg_quality']}")
-
-    lr_s = degrade(fake_hr, config=surv_cfg)
-    assert lr_s.size == expected, f"Surveillance size mismatch: {lr_s.size}"
-    print(f"  Output size  : {lr_s.size}  [OK]")
-
-    # Verify blur_sigma is within preset range
     assert surv_cfg["blur_sigma_min"] <= params_s["blur_sigma"] <= surv_cfg["blur_sigma_max"]
-    print("  Preset range check passed  [OK]")
+    print(f"  blur_sigma range {surv_cfg['blur_sigma_min']}–{surv_cfg['blur_sigma_max']}  [OK]")
+    assert surv_cfg["jpeg_quality_min"] <= (params_s["jpeg_quality"] or surv_cfg["jpeg_quality_min"]) <= surv_cfg["jpeg_quality_max"]
+    print(f"  jpeg range     {surv_cfg['jpeg_quality_min']}–{surv_cfg['jpeg_quality_max']}  [OK]")
 
     # ── All three presets produce correct size ────────────────────────────────
     print("\n[3] All domain presets produce correct output size")

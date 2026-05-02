@@ -287,6 +287,9 @@ def main():
     model     = SRResNet(scale=SCALE, num_res_blocks=8, num_features=64).to(device)
     criterion = nn.L1Loss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    scheduler = torch.optim.lr_scheduler.StepLR(
+        optimizer, step_size=25, gamma=0.5
+    )  # halve LR every 25 epochs: 1e-4 → 5e-5 → 2.5e-5 → 1.25e-5 → …
 
     num_params = sum(p.numel() for p in model.parameters())
     print(f"\nModel: SRResNet ({num_params:,} parameters)")
@@ -338,6 +341,12 @@ def main():
         print(f"  Val PSNR   : {avg_psnr:.2f} dB  (best: {best_psnr:.2f} dB)"
               + ("  <- new best!" if is_best else ""))
         print(f"  Val SSIM   : {avg_ssim:.4f}")
+
+        # ── LR schedule step ───────────────────────────────────────────────
+        scheduler.step()
+        cur_lr = scheduler.get_last_lr()[0]
+        if epoch % 25 == 0:
+            print(f"  [scheduler] LR → {cur_lr:.2e}")
 
         # ── Checkpoints ────────────────────────────────────────────────────
         save_checkpoint(CKPT_DIR / "last.pth",

@@ -453,6 +453,11 @@ def validate(
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+def _str2bool(v: str) -> bool:
+    """Parse a boolean command-line argument: 'true/1/yes' → True, else False."""
+    return v.strip().lower() not in ("false", "0", "no", "n")
+
+
 def main():
     # ── Parse command-line arguments ──────────────────────────────────────────
     parser = argparse.ArgumentParser(description="Train SimpleSRCNN")
@@ -465,6 +470,27 @@ def main():
         "--experiment",
         default=None,
         help="Override the experiment name from the config file",
+    )
+    # ── New simple-mode overrides ──────────────────────────────────────────────
+    parser.add_argument(
+        "--use_online_degradation", type=_str2bool, default=None, metavar="BOOL",
+        help="Override use_online_degradation (True/False)",
+    )
+    parser.add_argument(
+        "--use_surv_preset", type=_str2bool, default=None, metavar="BOOL",
+        help="Override surveillance preset (True=surveillance domain, False=clean LR)",
+    )
+    parser.add_argument(
+        "--checkpoint_dir", default=None,
+        help="Save checkpoints directly to this dir (bypasses experiment dir)",
+    )
+    parser.add_argument(
+        "--log_file", default=None,
+        help="Override CSV training log file path",
+    )
+    parser.add_argument(
+        "--num_epochs", type=int, default=None,
+        help="Override number of training epochs from config",
     )
     args = parser.parse_args()
 
@@ -488,6 +514,22 @@ def main():
         print("[preset] USE_SURVEILLANCE_PRESET=True → "
               "domain=surveillance, online degradation enabled")
 
+    # ── Apply command-line overrides (highest precedence) ─────────────────────
+    if args.use_online_degradation is not None:
+        cfg["data"]["use_online_degradation"] = args.use_online_degradation
+        print(f"[arg] --use_online_degradation {args.use_online_degradation}")
+    if args.use_surv_preset is not None:
+        if args.use_surv_preset:
+            cfg["data"]["domain"] = "surveillance"
+            cfg["data"]["use_online_degradation"] = True
+            print("[arg] --use_surv_preset True → domain=surveillance")
+        else:
+            cfg["data"]["domain"] = None
+            print("[arg] --use_surv_preset False → domain=None (clean/generic)")
+    if args.num_epochs is not None:
+        cfg["training"]["num_epochs"] = args.num_epochs
+        print(f"[arg] --num_epochs {args.num_epochs}")
+
     # Allow overriding the experiment name on the command line without editing YAML
     if args.experiment:
         cfg["experiment"]["name"] = args.experiment
@@ -499,6 +541,24 @@ def main():
     exp_dir = setup_experiment_dir(cfg)
     # Save a copy of the config so evaluation scripts can auto-discover it.
     shutil.copy2(config_path, exp_dir / "config.yaml")
+
+    # ── Checkpoint and log-file paths (may be overridden by --checkpoint_dir /
+    #    --log_file command-line args to support the three-experiment interface)
+    if args.checkpoint_dir is not None:
+        ckpt_dir = (Path(args.checkpoint_dir) if Path(args.checkpoint_dir).is_absolute()
+                    else project_dir / args.checkpoint_dir)
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        print(f"[checkpoint_dir] {ckpt_dir}")
+    else:
+        ckpt_dir = exp_dir / "checkpoints"
+
+    if args.log_file is not None:
+        csv_log_path = (Path(args.log_file) if Path(args.log_file).is_absolute()
+                        else project_dir / args.log_file)
+        csv_log_path.parent.mkdir(parents=True, exist_ok=True)
+        print(f"[log_file] {csv_log_path}")
+    else:
+        csv_log_path = project_dir / "outputs" / "training_log_srcnn.csv"
 
     # ── Device ────────────────────────────────────────────────────────────────
     device = get_device()
@@ -573,6 +633,7 @@ def main():
                 scale=SCALE,
                 domain=DOMAIN,
                 return_cond_vector=USE_COND,
+                upsample_lr=False,  # train_one_epoch handles upsampling
             )
             val_dataset = DIV2KDataset(
                 hr_dir=d["hr_valid_dir"],
@@ -580,6 +641,7 @@ def main():
                 scale=SCALE,
                 domain=DOMAIN,
                 return_cond_vector=USE_COND,
+                upsample_lr=False,
             )
         else:
             # Stage 2: generic random degradation (original behaviour).
@@ -590,12 +652,14 @@ def main():
                 degradation_fn=deg_fn,
                 patch_size=PATCH_SIZE,
                 scale=SCALE,
+                upsample_lr=False,
             )
             val_dataset = DIV2KDataset(
                 hr_dir=d["hr_valid_dir"],
                 lr_dir=d["lr_valid_dir"],
                 patch_size=None,
                 scale=SCALE,
+                upsample_lr=False,
             )
     else:
         # Stage 1: load pre-saved LR files from disk (requires prepare_data.py)
@@ -605,12 +669,14 @@ def main():
             lr_dir=d["lr_train_dir"],
             patch_size=PATCH_SIZE,
             scale=SCALE,
+            upsample_lr=False,
         )
         val_dataset = DIV2KDataset(
             hr_dir=d["hr_valid_dir"],
             lr_dir=d["lr_valid_dir"],
             patch_size=None,
             scale=SCALE,
+            upsample_lr=False,
         )
 
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE,
@@ -635,7 +701,7 @@ def main():
     # ── Resume from checkpoint? ───────────────────────────────────────────────
     start_epoch = 1
     best_psnr   = 0.0
-    last_ckpt   = exp_dir / "checkpoints" / "last.pth"
+    last_ckpt   = ckpt_dir / "last.pth"
 
     if last_ckpt.exists():
         answer = input(f"\nCheckpoint found. Resume training? [y/N]: ").strip().lower()
@@ -717,10 +783,9 @@ def main():
                                   "ssim": round(avg_ssim, 6)})
 
         # ── CSV logging ────────────────────────────────────────────────────
-        csv_path = project_dir / "outputs" / "training_log_srcnn.csv"
-        csv_path.parent.mkdir(parents=True, exist_ok=True)
-        write_header = not csv_path.exists()
-        with open(csv_path, "a", newline="") as _f:
+        csv_log_path.parent.mkdir(parents=True, exist_ok=True)
+        write_header = not csv_log_path.exists()
+        with open(csv_log_path, "a", newline="") as _f:
             import csv as _csv
             _w = _csv.writer(_f)
             if write_header:
@@ -739,12 +804,12 @@ def main():
 
         # ── Save checkpoints ───────────────────────────────────────────────
         # last.pth: always overwritten — used for resuming
-        save_checkpoint(exp_dir / "checkpoints" / "last.pth",
+        save_checkpoint(ckpt_dir / "last.pth",
                         model, optimizer, epoch, avg_psnr)
 
         # best.pth: only written when PSNR improves — this is the final model
         if is_best:
-            save_checkpoint(exp_dir / "checkpoints" / "best.pth",
+            save_checkpoint(ckpt_dir / "best.pth",
                             model, optimizer, epoch, avg_psnr)
             print(f"  [checkpoint] best.pth updated (PSNR {best_psnr:.2f} dB)")
 
