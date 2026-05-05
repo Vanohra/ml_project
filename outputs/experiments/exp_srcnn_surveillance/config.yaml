@@ -1,0 +1,50 @@
+# CSC 4850 — Default training configuration for SimpleSRCNN
+# Run:  python scripts/train.py                  (uses this file automatically)
+# Run:  python scripts/train.py --experiment foo  (override experiment name only)
+# Override degradation / paths via argparse:
+#   python scripts/train.py --use_surv_preset False --checkpoint_dir outputs/ckpt_clean
+
+experiment:
+  name: "exp_srcnn_surveillance"
+  seed: 42
+
+# ── Model ─────────────────────────────────────────────────────────────────────
+model:
+  name: "srcnn"          # "srcnn" | "srresnet" | "conditioned_srresnet"
+  num_res_blocks: 8      # SRResNet / ConditionedSRResNet only
+  num_features: 64       # feature channels
+  embed_dim: 64          # ConditionedSRResNet only
+
+# ── Data ──────────────────────────────────────────────────────────────────────
+data:
+  hr_train_dir: "data/DIV2K/HR_train"
+  hr_valid_dir: "data/DIV2K/HR_valid"
+  lr_train_dir: "data/DIV2K/LR_train"
+  lr_valid_dir: "data/DIV2K/LR_valid"
+  use_online_degradation: true
+  domain: "surveillance"
+
+# ── Training ──────────────────────────────────────────────────────────────────
+training:
+  num_epochs: 50
+  batch_size: 16
+  learning_rate: 0.0001
+  patch_size: 48
+  scale: 4
+  log_every: 20
+
+# ── Loss ──────────────────────────────────────────────────────────────────────
+loss:
+  pixel:
+    type: l1
+    weight: 1.0
+  perceptual:
+    enabled: false
+    weight: 0.1
+    layer: relu2_2
+
+# ── Output ────────────────────────────────────────────────────────────────────
+output:
+  base_dir: "outputs/experiments"
+  save_samples_every: 10
+  num_sample_images: 4

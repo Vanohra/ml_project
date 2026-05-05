@@ -452,8 +452,10 @@ if __name__ == "__main__":
         lr, hr = val_ds[0]
         print(f"  Full image  — LR: {tuple(lr.shape)}  HR: {tuple(hr.shape)}")
 
-        train_ds = DIV2KDataset(hr_dir=base / "HR_train", lr_dir=base / "LR_train",
-                                patch_size=PATCH, scale=SCALE)
+        train_ds = DIV2KDataset(hr_dir=base / "HR_train",lr_dir=base / "LR_train",patch_size=PATCH,
+                                scale=SCALE,
+                                upsample_lr=False
+                                )
         lr, hr = train_ds[0]
         assert lr.shape == torch.Size([3, PATCH, PATCH])
         assert hr.shape == torch.Size([3, PATCH * SCALE, PATCH * SCALE])
@@ -471,7 +473,7 @@ if __name__ == "__main__":
             patch_size=PATCH, scale=SCALE,
         )
         lr, hr = ds_b[0]
-        assert lr.shape == torch.Size([3, PATCH, PATCH])
+        assert lr.shape == torch.Size([3, PATCH * SCALE, PATCH * SCALE])
         assert hr.shape == torch.Size([3, PATCH * SCALE, PATCH * SCALE])
         print(f"  Patch mode  — LR: {tuple(lr.shape)}  HR: {tuple(hr.shape)}")
         print("  Shape check passed.  [OK]")
@@ -495,7 +497,7 @@ if __name__ == "__main__":
             print(f"  {len(ds_c)} HR image(s) found.")
 
             lr, hr = ds_c[0]
-            assert lr.shape == torch.Size([3, PATCH, PATCH]), \
+            assert lr.shape == torch.Size([3, PATCH * SCALE, PATCH * SCALE]), \
                 f"LR shape wrong: {lr.shape}"
             assert hr.shape == torch.Size([3, PATCH * SCALE, PATCH * SCALE]), \
                 f"HR shape wrong: {hr.shape}"
